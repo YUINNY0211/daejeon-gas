@@ -14,13 +14,15 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
-    #map { height: 340px; width: 100%; border-radius: 0.75rem; z-index: 1; }
+    #map { height: 60vh; min-height: 380px; max-height: 640px; width: 100%; border-radius: 0.75rem; z-index: 1; }
     /* [수정] Tailwind가 지도 타일 크기를 깨서 위치가 밀리던 문제 방지 */
     .leaflet-container img, .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; }
     /* [수정4] 주유소 풀네임 표시: 점 + 이름 라벨 */
     .pin { position: relative; width: 16px; height: 16px; }
     .pin i { display: block; width: 16px; height: 16px; border-radius: 9999px; background: #059669; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
     .pin.off i { background: #6b7280; }
+    .pin.sel i { outline: 3px solid #f59e0b; }
+    .pin.sel b { background: #fef3c7; }
     .pin b { position: absolute; left: 19px; top: -2px; white-space: nowrap; font-size: 10px; font-weight: bold; color: #064e3b; background: rgba(255,255,255,0.92); padding: 1px 5px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
     .pin.off b { color: #374151; }
   </style>
@@ -47,6 +49,10 @@
       '대덕구': [36.3467, 127.4156, 15]  // 대덕구청 사거리
     };
 
+    // 캐시백 상태 문구: true=확인됨 / false=불가 / null=미확인
+    const cbText = (s) => s.cashback === true ? '🟢 캐시백 확인됨' : s.cashback === false ? '🔴 캐시백 불가' : '⚪ 캐시백 미확인';
+    const READY = ['동구', '중구']; // 데이터가 반영된 구
+
     const ago = (t) => {
       const m = Math.floor((Date.now() - t) / 60000);
       return m < 1 ? '방금 전' : m < 60 ? m + '분 전' : Math.floor(m / 60) + '시간 전';
@@ -57,10 +63,14 @@
       const [searchTerm, setSearchTerm] = useState('');
       const [onlyCashback, setOnlyCashback] = useState(true);
       const [selectedStation, setSelectedStation] = useState(null);
+      const [searchHits, setSearchHits] = useState([]);   // 검색 결과로 지도에 표시할 주유소
+      const [openSug, setOpenSug] = useState(false);       // 자동완성 목록 열림
+      const [activeIdx, setActiveIdx] = useState(-1);      // 방향키로 고른 항목
 
       // [수정7,8] 시민 제보: 서버(Cloudflare D1)에서 불러옴, 최대 7개
       const [feedbacks, setFeedbacks] = useState([]);
       const [fbMsg, setFbMsg] = useState('');
+      const [fbNotice, setFbNotice] = useState(''); // 버튼 클릭 결과 안내
       const [copyStatus, setCopyStatus] = useState(false);
 
       const [mapReady, setMapReady] = useState(false);
@@ -69,85 +79,133 @@
 
       // 대전 전역 및 서구(내동, 도마, 가수원 등) 실제 도로 좌표 정밀 매칭 데이터
       const stations = [
-        // --- [서구 집중 보강] ---
-        { id: 1, name: '내동주유소', district: '서구', dong: '내동', address: '대전 서구 내동 8-10', phone: '042-532-5189', cashback: true, lat: 36.3385, lng: 127.3730 },
-        { id: 2, name: '도마동주유소', district: '서구', dong: '도마동', address: '대전 서구 도마로 50', phone: '042-523-5189', cashback: true, lat: 36.3210, lng: 127.3750 },
-        { id: 3, name: '배재주유소', district: '서구', dong: '도마동', address: '대전 서구 배재로 115', phone: '042-525-8933', cashback: false, lat: 36.3245, lng: 127.3720 },
-        { id: 4, name: '가수원주유소', district: '서구', dong: '가수원동', address: '대전 서구 계백로 1176', phone: '042-543-5189', cashback: true, lat: 36.3080, lng: 127.3510 },
-        { id: 5, name: '가수원하늘셀프주유소', district: '서구', dong: '가수원동', address: '대전 서구 가수원로 210', phone: '042-543-7788', cashback: true, lat: 36.3060, lng: 127.3480 },
-        { id: 6, name: '계백셀프주유소', district: '서구', dong: '정림동', address: '대전 서구 계백로 1250', phone: '042-583-5189', cashback: true, lat: 36.3150, lng: 127.3620 },
-        { id: 7, name: '신대전셀프주유소', district: '서구', dong: '변동', address: '대전 서구 변동서로 30', phone: '042-535-1004', cashback: true, lat: 36.3340, lng: 127.3820 },
-        { id: 8, name: '우리하나셀프주유소', district: '서구', dong: '변동', address: '대전 서구 도산로 150', phone: '042-536-5189', cashback: false, lat: 36.3310, lng: 127.3860 },
-        { id: 9, name: '구봉산셀프주유소', district: '서구', dong: '관저동', address: '대전 서구 구봉로 208', phone: '042-256-8333', cashback: false, lat: 36.2950, lng: 127.3380 },
-        { id: 10, name: '관저알뜰주유소', district: '서구', dong: '관저동', address: '대전 서구 관저로 45', phone: '042-541-2345', cashback: true, lat: 36.3012, lng: 127.3321 },
-        { id: 11, name: '도안신도시주유소', district: '서구', dong: '도안동', address: '대전 서구 도안동로 277', phone: '042-545-2227', cashback: true, lat: 36.3350, lng: 127.3450 },
-        { id: 12, name: '도안셀프주유소', district: '서구', dong: '도안동', address: '대전 서구 도안북로 90', phone: '042-825-9900', cashback: true, lat: 36.3410, lng: 127.3480 },
-        { id: 13, name: '목원주유소', district: '서구', dong: '도안동', address: '대전 서구 도안북로 115', phone: '042-826-7788', cashback: true, lat: 36.3480, lng: 127.3420 },
-        { id: 14, name: '둔산제일주유소', district: '서구', dong: '둔산동', address: '대전 서구 둔산로 123', phone: '042-482-1234', cashback: true, lat: 36.3520, lng: 127.3782 },
-        { id: 15, name: '타임월드SK주유소', district: '서구', dong: '둔산동', address: '대전 서구 대덕대로 211', phone: '042-483-5678', cashback: true, lat: 36.3538, lng: 127.3795 },
-        { id: 16, name: '한밭주유소', district: '서구', dong: '둔산동', address: '대전 서구 문정로 3', phone: '042-471-5189', cashback: true, lat: 36.3480, lng: 127.3850 },
-        { id: 17, name: '청사주유소', district: '서구', dong: '둔산동', address: '대전 서구 청사로 189', phone: '042-481-2233', cashback: true, lat: 36.3560, lng: 127.3830 },
-        { id: 18, name: '월평현대주유소', district: '서구', dong: '월평동', address: '대전 서구 한밭대로 500', phone: '042-484-9012', cashback: false, lat: 36.3580, lng: 127.3650 },
-        { id: 19, name: '월평SK주유소', district: '서구', dong: '월평동', address: '대전 서구 청사로 120', phone: '042-487-3344', cashback: true, lat: 36.3550, lng: 127.3710 },
-        { id: 20, name: '갈마알뜰주유소', district: '서구', dong: '갈마동', address: '대전 서구 갈마로 85', phone: '042-531-1122', cashback: true, lat: 36.3475, lng: 127.3690 },
-        { id: 21, name: '만년오일주유소', district: '서구', dong: '만년동', address: '대전 서구 만년로 30', phone: '042-485-6789', cashback: true, lat: 36.3625, lng: 127.3755 },
-        { id: 22, name: '탄방주유소', district: '서구', dong: '탄방동', address: '대전 서구 탄방로 75', phone: '042-536-1234', cashback: true, lat: 36.3420, lng: 127.3910 },
-        { id: 23, name: '괴정셀프주유소', district: '서구', dong: '괴정동', address: '대전 서구 도산로 280', phone: '042-534-1004', cashback: true, lat: 36.3370, lng: 127.3880 },
-        { id: 24, name: '용문알뜰주유소', district: '서구', dong: '용문동', address: '대전 서구 도산로 350', phone: '042-538-4321', cashback: true, lat: 36.3350, lng: 127.3920 },
-
-        // --- [유성구] ---
-        { id: 25, name: '유성온천주유소', district: '유성구', dong: '봉명동', address: '대전 유성구 대학로 100', phone: '042-822-1111', cashback: true, lat: 36.3595, lng: 127.3440 },
-        { id: 26, name: '유성셀프주유소', district: '유성구', dong: '봉명동', address: '대전 유성구 한밭대로 400', phone: '042-826-3355', cashback: true, lat: 36.3570, lng: 127.3480 },
-        { id: 27, name: '하은셀프주유소', district: '유성구', dong: '구암동', address: '대전 유성구 유성대로 614', phone: '042-825-1658', cashback: true, lat: 36.3570, lng: 127.3350 },
-        { id: 28, name: '장대주유소', district: '유성구', dong: '장대동', address: '대전 유성구 유성대로 750', phone: '042-822-3344', cashback: false, lat: 36.3650, lng: 127.3320 },
-        { id: 29, name: '첨단셀프주유소', district: '유성구', dong: '신성동', address: '대전 유성구 신성로 50', phone: '042-861-5566', cashback: true, lat: 36.3860, lng: 127.3580 },
-        { id: 30, name: '노은셀프주유소', district: '유성구', dong: '지족동', address: '대전 유성구 노은로 200', phone: '042-824-3333', cashback: true, lat: 36.3750, lng: 127.3180 },
-        { id: 31, name: '노은SK주유소', district: '유성구', dong: '지족동', address: '대전 유성구 은구비로 30', phone: '042-825-4455', cashback: true, lat: 36.3720, lng: 127.3150 },
-        { id: 32, name: '정다운주유소', district: '유성구', dong: '노은동', address: '대전 유성구 북유성대로 51', phone: '042-824-5151', cashback: true, lat: 36.3680, lng: 127.3250 },
-        { id: 33, name: '반석셀프주유소', district: '유성구', dong: '반석동', address: '대전 유성구 북유성대로 800', phone: '042-825-9988', cashback: true, lat: 36.3820, lng: 127.2990 },
-        { id: 34, name: '관평현대주유소', district: '유성구', dong: '관평동', address: '대전 유성구 테크노중앙로 50', phone: '042-931-4444', cashback: true, lat: 36.4240, lng: 127.3910 },
-        { id: 35, name: '대전중앙주유소', district: '유성구', dong: '전민동', address: '대전 유성구 엑스포로 450', phone: '042-863-1122', cashback: true, lat: 36.3980, lng: 127.4050 },
-        { id: 36, name: '송정주유소', district: '유성구', dong: '용산동', address: '대전 유성구 유성대로 1030', phone: '042-931-8899', cashback: true, lat: 36.4180, lng: 127.3820 },
-
-        // --- [중구] ---
-        { id: 37, name: '중앙로주유소', district: '중구', dong: '대흥동', address: '대전 중구 중앙로 50', phone: '042-254-1111', cashback: true, lat: 36.3260, lng: 127.4250 },
-        { id: 38, name: '오류GS주유소', district: '중구', dong: '오류동', address: '대전 중구 계백로 1700', phone: '042-522-2222', cashback: true, lat: 36.3230, lng: 127.4080 },
-        { id: 39, name: '문화현대주유소', district: '중구', dong: '문화동', address: '대전 중구 보문산로 180', phone: '042-585-1122', cashback: true, lat: 36.3110, lng: 127.4150 },
-        { id: 40, name: '태평셀프주유소', district: '중구', dong: '태평동', address: '대전 중구 동서대로 1210', phone: '042-533-4444', cashback: true, lat: 36.3320, lng: 127.3980 },
-        { id: 41, name: '유천GS주유소', district: '중구', dong: '유천동', address: '대전 중구 계백로 1400', phone: '042-584-6677', cashback: true, lat: 36.3140, lng: 127.3950 },
-        { id: 42, name: '선화보문주유소', district: '중구', dong: '선화동', address: '대전 중구 선화서로 90', phone: '042-221-3456', cashback: true, lat: 36.3315, lng: 127.4180 },
-        { id: 43, name: '안영IC주유소', district: '중구', dong: '안영동', address: '대전 중구 대둔산로 188', phone: '042-584-5145', cashback: true, lat: 36.2850, lng: 127.4020 },
-        { id: 44, name: '산성주유소', district: '중구', dong: '산성동', address: '대전 중구 유등로 30', phone: '042-582-1212', cashback: true, lat: 36.3050, lng: 127.4010 },
-
-        // --- [동구] ---
-        { id: 45, name: '가양주유소', district: '동구', dong: '가양동', address: '대전 동구 동서대로 1600', phone: '042-621-1111', cashback: true, lat: 36.3420, lng: 127.4450 },
-        { id: 46, name: '용전SK주유소', district: '동구', dong: '용전동', address: '대전 동구 한밭대로 1200', phone: '042-622-2222', cashback: true, lat: 36.3510, lng: 127.4380 },
-        { id: 47, name: '태양주유소', district: '동구', dong: '용전동', address: '대전 동구 한밭대로 1258', phone: '042-624-5122', cashback: true, lat: 36.3530, lng: 127.4410 },
-        { id: 48, name: '대동주유소', district: '동구', dong: '용운동', address: '대전 동구 계족로140번길 73', phone: '042-283-5333', cashback: true, lat: 36.3280, lng: 127.4480 },
-        { id: 49, name: '대신주유소', district: '동구', dong: '대신동', address: '대전 동구 계족로 126', phone: '042-283-5566', cashback: true, lat: 36.3340, lng: 127.4410 },
-        { id: 50, name: '판암GS주유소', district: '동구', dong: '판암동', address: '대전 동구 옥천로 180', phone: '042-283-4444', cashback: true, lat: 36.3170, lng: 127.4580 },
-        { id: 51, name: '하소주유소', district: '동구', dong: '하소동', address: '대전 동구 산내로 1250', phone: '042-273-1199', cashback: true, lat: 36.2510, lng: 127.4550 },
-
-        // --- [대덕구] ---
-        { id: 52, name: '송촌셀프주유소', district: '대덕구', dong: '송촌동', address: '대전 대덕구 동춘당로 80', phone: '042-631-1111', cashback: true, lat: 36.3620, lng: 127.4420 },
-        { id: 53, name: '중리행복주유소', district: '대덕구', dong: '중리동', address: '대전 대덕구 중리남로 30', phone: '042-635-8899', cashback: true, lat: 36.3560, lng: 127.4340 },
-        { id: 54, name: '오정현대주유소', district: '대덕구', dong: '오정동', address: '대전 대덕구 한밭대로 1000', phone: '042-623-4444', cashback: true, lat: 36.3530, lng: 127.4180 },
-        { id: 55, name: '대원셀프주유소', district: '대덕구', dong: '비래동', address: '대전 대덕구 동서대로 1772', phone: '042-625-1690', cashback: true, lat: 36.3480, lng: 127.4560 },
-        { id: 56, name: '회덕주유소', district: '대덕구', dong: '읍내동', address: '대전 대덕구 한밭대로 1300', phone: '042-628-3344', cashback: true, lat: 36.3680, lng: 127.4280 },
-        { id: 57, name: '신탄진알뜰주유소', district: '대덕구', dong: '석봉동', address: '대전 대덕구 대덕대로1527번길 374', phone: '042-932-3000', cashback: true, lat: 36.4420, lng: 127.4210 },
-        { id: 58, name: '성찬셀프주유소', district: '대덕구', dong: '신탄진동', address: '대전 대덕구 신탄진로 764', phone: '042-346-1208', cashback: true, lat: 36.4530, lng: 127.4290 },
-        { id: 59, name: '목상셀프주유소', district: '대덕구', dong: '목상동', address: '대전 대덕구 대덕대로 1500', phone: '070-7722-5153', cashback: true, lat: 36.4620, lng: 127.4210 },
-        { id: 60, name: '대화공단주유소', district: '대덕구', dong: '대화동', address: '대전 대덕구 대화로 100', phone: '042-625-6789', cashback: true, lat: 36.3680, lng: 127.4150 }
+        // 출처: 대전 동구(기준일 2026-07-20)·중구(기준일 2026-01-06) 공공데이터 주유소 현황
+        // cashback: true=확인됨 / false=불가 확인 / null=미확인 (확인된 곳만 true로 바꾸세요)
+        { id: 1, name: "판암하늘셀프주유소", district: "동구", dong: "판암동", address: "대전 동구 옥천로 81-1", phone: "042-286-5189", cashback: null, lat: 36.3194358, lng: 127.4501899 },
+        { id: 2, name: "주식회사 대동현대셀프", district: "동구", dong: "대동", address: "대전 동구 계족로 126", phone: "042-283-5189", cashback: null, lat: 36.325597, lng: 127.4456242 },
+        { id: 3, name: "내트럭(주) 남대전사업소", district: "동구", dong: "구도동", address: "대전 동구 대전로 1", phone: "042-271-5673", cashback: null, lat: 36.2721016, lng: 127.4720235 },
+        { id: 4, name: "산내제일주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 269", phone: "042-282-5189", cashback: null, lat: 36.2923286, lng: 127.4621434 },
+        { id: 5, name: "(주)하늘셀프주유소", district: "동구", dong: "천동", address: "대전 동구 대전로 549", phone: "042-283-5151", cashback: null, lat: 36.3116232, lng: 127.4446841 },
+        { id: 6, name: "신가오주유소", district: "동구", dong: "가오동", address: "대전 동구 은어송로 38", phone: "042-272-7171", cashback: null, lat: 36.305079, lng: 127.4545839 },
+        { id: 7, name: "대성셀프주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 292", phone: "042-286-9505", cashback: null, lat: 36.2942465, lng: 127.4617961 },
+        { id: 8, name: "(주)학하 삼성셀프주유소", district: "동구", dong: "삼성동", address: "대전 동구 대전로 908", phone: "042-637-5566", cashback: null, lat: 36.3397569, lng: 127.427744 },
+        { id: 9, name: "토지주유소", district: "동구", dong: "소제동", address: "대전 동구 계족로 249", phone: "042-633-0830", cashback: null, lat: 36.3350576, lng: 127.4389781 },
+        { id: 10, name: "대양석유(주) 덕성셀프주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 287", phone: "042-286-9505", cashback: null, lat: 36.2937276, lng: 127.4613929 },
+        { id: 11, name: "에이치디현대오일뱅크(주) 직영 동원주유소", district: "동구", dong: "삼정동", address: "대전 동구 옥천로 355-3", phone: "042-282-5155", cashback: null, lat: 36.3262539, lng: 127.4727472 },
+        { id: 12, name: "신고개주유소", district: "동구", dong: "용운동", address: "대전 동구 새울로 38", phone: "042-285-6700", cashback: null, lat: 36.321821, lng: 127.4630438 },
+        { id: 13, name: "동일석유(주) 대전주유소", district: "동구", dong: "용전동", address: "대전 동구 계족로 436", phone: "042-673-8880", cashback: null, lat: 36.3506338, lng: 127.4326965 },
+        { id: 14, name: "재하 주유소", district: "동구", dong: "성남동", address: "대전 동구 동서대로 1664", phone: "042-626-6626", cashback: null, lat: 36.3481201, lng: 127.4349134 },
+        { id: 15, name: "매봉주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 247", phone: "042-636-6086", cashback: null, lat: 36.3445764, lng: 127.4434933 },
+        { id: 16, name: "우정주유소", district: "동구", dong: "삼정동", address: "대전 동구 옥천로 418", phone: "042-284-0235", cashback: null, lat: 36.3312768, lng: 127.4761306 },
+        { id: 17, name: "아원주유소", district: "동구", dong: "성남동", address: "대전 동구 계족로 326", phone: "042-625-2928", cashback: null, lat: 36.3414894, lng: 127.4358486 },
+        { id: 18, name: "지에스칼텍스(주) 현암주유소", district: "동구", dong: "삼성동", address: "대전 동구 동서대로 1494", phone: "042-634-3151", cashback: null, lat: 36.3393215, lng: 127.4199645 },
+        { id: 19, name: "동광장셀프주유소", district: "동구", dong: "소제동", address: "대전 동구 중앙로 280", phone: "", cashback: null, lat: 36.3332999, lng: 127.4391749 },
+        { id: 20, name: "호원주유소", district: "동구", dong: "용전동", address: "대전 동구 한밭대로 1315", phone: "042-672-2954", cashback: null, lat: 36.3523992, lng: 127.44122 },
+        { id: 21, name: "SK대동주유소", district: "동구", dong: "용운동", address: "대전 동구 계족로140번길 73", phone: "042-283-5333", cashback: null, lat: 36.3267636, lng: 127.4485824 },
+        { id: 22, name: "케이앤엘에너지(주) 용전셀프주유소", district: "동구", dong: "홍도동", address: "대전 동구 동서대로 1627", phone: "042-637-8838", cashback: null, lat: 36.347056, lng: 127.4307383 },
+        { id: 23, name: "KH에너지(주)직영 태양주유소", district: "동구", dong: "용전동", address: "대전 동구 한밭대로 1258", phone: "042-624-5122", cashback: null, lat: 36.3555404, lng: 127.4362091 },
+        { id: 24, name: "(주)신영에너지", district: "동구", dong: "가양동", address: "대전 동구 동대전로 253", phone: "042-632-5289", cashback: null, lat: 36.343722, lng: 127.4466816 },
+        { id: 25, name: "대전알찬주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 316", phone: "042-633-7975", cashback: null, lat: 36.3474364, lng: 127.45043 },
+        { id: 26, name: "(주)이선 광장셀프주유소", district: "동구", dong: "성남동", address: "대전 동구 계족로 305", phone: "042-623-2368", cashback: null, lat: 36.3395266, lng: 127.4364773 },
+        { id: 27, name: "유원주유소", district: "동구", dong: "용전동", address: "대전 동구 계족로 513", phone: "042-672-3613", cashback: null, lat: 36.357493, lng: 127.4324736 },
+        { id: 28, name: "주식회사 용운주유소", district: "동구", dong: "용운동", address: "대전 동구 백룡로 77", phone: "042-471-6699", cashback: null, lat: 36.333148, lng: 127.4541223 },
+        { id: 29, name: "가양셀프주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 365", phone: "042-632-3838", cashback: null, lat: 36.3514532, lng: 127.4524629 },
+        { id: 30, name: "고향주유소", district: "동구", dong: "상소동", address: "대전 동구 산내로 562", phone: "042-273-1998", cashback: null, lat: 36.2288197, lng: 127.453728 },
+        { id: 31, name: "동아주유소", district: "동구", dong: "대동", address: "대전 동구 동대전로 118", phone: "042-626-3333", cashback: null, lat: 36.3326095, lng: 127.4451485 },
+        { id: 32, name: "㈜남강 중앙로셀프주유소", district: "중구", dong: "대흥동", address: "대전 중구 중앙로 64", phone: "", cashback: null, lat: 36.3239982, lng: 127.4190481 },
+        { id: 33, name: "㈜호랑이앤씨", district: "중구", dong: "호동", address: "대전 중구 대종로 122", phone: "", cashback: null, lat: 36.3034717, lng: 127.4511268 },
+        { id: 34, name: "충남주유소", district: "중구", dong: "대흥동", address: "대전 중구 대흥로 80", phone: "", cashback: null, lat: 36.3230601, lng: 127.4213834 },
+        { id: 35, name: "금성주유소", district: "중구", dong: "태평동", address: "대전 중구 동서대로 1183", phone: "", cashback: null, lat: 36.3271044, lng: 127.3915765 },
+        { id: 36, name: "동건셀프주유소", district: "중구", dong: "유천동", address: "대전 중구 문화로 97", phone: "", cashback: null, lat: 36.3123667, lng: 127.3965688 },
+        { id: 37, name: "두바이주유소 도안씨티㈜", district: "중구", dong: "대사동", address: "대전 중구 보문로 117", phone: "", cashback: null, lat: 36.3141697, lng: 127.4278608 },
+        { id: 38, name: "옥계셀프주유소", district: "중구", dong: "옥계동", address: "대전 중구 대종로 103", phone: "", cashback: null, lat: 36.301623, lng: 127.4516096 },
+        { id: 39, name: "㈜중촌주유소", district: "중구", dong: "선화동", address: "대전 중구 동서대로 1434", phone: "", cashback: null, lat: 36.3355406, lng: 127.415077 },
+        { id: 40, name: "이화주유소", district: "중구", dong: "석교동", address: "대전 중구 대종로 166", phone: "", cashback: null, lat: 36.3066301, lng: 127.4482354 },
+        { id: 41, name: "천지인주유소", district: "중구", dong: "옥계동", address: "대전 중구 대종로 44", phone: "", cashback: null, lat: 36.297639, lng: 127.4560612 },
+        { id: 42, name: "행복가득주유소", district: "중구", dong: "산성동", address: "대전 중구 보문산로 86", phone: "", cashback: null, lat: 36.3052868, lng: 127.3899207 },
+        { id: 43, name: "현대오일뱅크(주)직영 충무주유소", district: "중구", dong: "부사동", address: "대전 중구 충무로 141", phone: "", cashback: null, lat: 36.3200186, lng: 127.4323125 },
+        { id: 44, name: "태성주유소", district: "중구", dong: "중촌동", address: "대전 중구 동서대로 1459", phone: "", cashback: null, lat: 36.337813, lng: 127.416951 },
+        { id: 45, name: "㈜김여사네 셀프주유소", district: "중구", dong: "선화동", address: "대전 중구 대종로 558", phone: "", cashback: null, lat: 36.3327149, lng: 127.4211939 },
+        { id: 46, name: "㈜석교주유소 석교셀프주유소", district: "중구", dong: "석교동", address: "대전 중구 대종로 207", phone: "", cashback: null, lat: 36.3082974, lng: 127.443783 },
+        { id: 47, name: "안영셀프주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 241", phone: "", cashback: null, lat: 36.2916548, lng: 127.3815614 },
+        { id: 48, name: "하나로주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 211", phone: "", cashback: null, lat: 36.2892152, lng: 127.3801358 },
+        { id: 49, name: "안영IC주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 188", phone: "", cashback: null, lat: 36.2871486, lng: 127.3789725 },
+        { id: 50, name: "우리 셋 주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 150", phone: "", cashback: null, lat: 36.2845751, lng: 127.3767814 },
+        { id: 51, name: "거북이주유소", district: "중구", dong: "산성동", address: "대전 중구 문화로 35", phone: "", cashback: null, lat: 36.3106079, lng: 127.3898047 },
+        { id: 52, name: "도서관셀프주유소", district: "중구", dong: "문화동", address: "대전 중구 보문산로 353", phone: "", cashback: null, lat: 36.313758, lng: 127.4153711 },
+        { id: 53, name: "SK청정주유소", district: "중구", dong: "오류동", address: "대전 중구 계룡로 756", phone: "", cashback: null, lat: 36.3309334, lng: 127.4017666 },
+        { id: 54, name: "삼육주유소", district: "중구", dong: "중촌동", address: "대전 중구 대전천서로 757", phone: "", cashback: null, lat: 36.347818, lng: 127.4068494 },
+        { id: 55, name: "소망주유소", district: "중구", dong: "문화동", address: "대전 중구 보문산로 307", phone: "", cashback: null, lat: 36.3107876, lng: 127.4120481 },
+        { id: 56, name: "동물원주유소", district: "중구", dong: "사정동", address: "대전 중구 대둔산로 270", phone: "", cashback: null, lat: 36.2937384, lng: 127.3836834 },
+        { id: 57, name: "오월드주유소", district: "중구", dong: "사정동", address: "대전 중구 대둔산로 359", phone: "", cashback: null, lat: 36.3013344, lng: 127.385623 },
+        { id: 58, name: "㈜제트에너지 동서로점", district: "중구", dong: "오류동", address: "대전 중구 동서대로 1293", phone: "", cashback: null, lat: 36.3283379, lng: 127.4033193 },
+        { id: 59, name: "㈜에너비즈삼성주유소", district: "중구", dong: "오류동", address: "대전 중구 계룡로 778", phone: "", cashback: null, lat: 36.3294136, lng: 127.403471 },
+        { id: 60, name: "(주)농협유통 하나로주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로199번길 43", phone: "", cashback: null, lat: 36.2885909, lng: 127.3784461 },
+        { id: 61, name: "서대전농협주유소", district: "중구", dong: "유천동", address: "대전 중구 계백로 1555", phone: "", cashback: null, lat: 36.3176547, lng: 127.3929772 }
       ];
 
       const districts = ['전체', '서구', '유성구', '중구', '동구', '대덕구'];
 
       const filteredStations = stations.filter(s => {
         const matchDistrict = selectedDistrict === '전체' || s.district === selectedDistrict;
-        const matchSearch = s.name.includes(searchTerm) || s.dong.includes(searchTerm) || s.address.includes(searchTerm);
         const matchCashback = !onlyCashback || s.cashback === true;
-        return matchDistrict && matchSearch && matchCashback;
+        return matchDistrict && matchCashback;
       });
+
+      // 검색어 정리: 공백, ㈜, (주), 주식회사 무시
+      const norm = (t) => String(t).replace(/[\s㈜()（）]/g, '').replace(/주식회사/g, '').toLowerCase();
+      const q = norm(searchTerm);
+      const suggestions = q
+        ? stations
+            .filter(s => [s.name, s.dong, s.address, s.district].some(f => norm(f).includes(q)))
+            .sort((a, b) => (norm(b.name).includes(q) ? 1 : 0) - (norm(a.name).includes(q) ? 1 : 0))
+        : [];
+
+      const fitTo = (list) => {
+        const map = mapRef.current;
+        if (!map || !list.length) return;
+        if (list.length === 1) map.setView([list[0].lat, list[0].lng], 17);
+        else map.fitBounds(L.latLngBounds(list.map(s => [s.lat, s.lng])), { padding: [30, 30], maxZoom: 16 });
+      };
+
+      // 한 곳을 고른 경우(클릭/방향키+엔터) 또는 엔터만 친 경우(검색된 전체를 보여줌)
+      const pickSearch = (one) => {
+        if (one) {
+          setSearchHits([]);
+          setSelectedStation(one);
+          setSearchTerm(one.name);
+          fitTo([one]);
+        } else if (suggestions.length) {
+          setSearchHits(suggestions);
+          setSelectedStation(suggestions[0]);
+          fitTo(suggestions);
+        }
+        setOpenSug(false);
+        setActiveIdx(-1);
+      };
+
+      const onSearchKey = (e) => {
+        const n = Math.min(suggestions.length, 8);
+        if (e.key === 'ArrowDown') { e.preventDefault(); setOpenSug(true); setActiveIdx(i => (i + 1) % Math.max(n, 1)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => (i <= 0 ? n - 1 : i - 1)); }
+        else if (e.key === 'Enter') { e.preventDefault(); pickSearch(activeIdx >= 0 ? suggestions[activeIdx] : null); }
+        else if (e.key === 'Escape') { setOpenSug(false); }
+      };
+
+      // 체크박스 변경: 보이는 주유소로 지도를 맞춰 이동 (없으면 구 중심으로)
+      const toggleOnly = (v) => {
+        setOnlyCashback(v);
+        setSearchHits([]);
+        const list = stations.filter(s => (selectedDistrict === '전체' || s.district === selectedDistrict) && (!v || s.cashback === true));
+        if (list.length) {
+          const map = mapRef.current;
+          if (map && list.length > 1) map.fitBounds(L.latLngBounds(list.map(s => [s.lat, s.lng])), { padding: [30, 30], maxZoom: 16 });
+          else fitTo(list);
+        } else if (mapRef.current) {
+          const [la, ln, z] = districtCoords[selectedDistrict];
+          mapRef.current.setView([la, ln], z);
+        }
+      };
 
       // [수정5] 선택한 주유소 기준 가까운 주유소 3개 (체크 상태면 캐시백 가능만)
       const nearby = selectedStation
@@ -187,23 +245,25 @@
       useEffect(() => {
         if (!mapRef.current || !markersGroupRef.current) return;
         markersGroupRef.current.clearLayers();
-        filteredStations.forEach(s => {
+        const draw = [...filteredStations];
+        [...searchHits, selectedStation].forEach(s => { if (s && !draw.some(x => x.id === s.id)) draw.push(s); });
+        draw.forEach(s => {
           const icon = L.divIcon({
             className: '',
-            html: `<div class="pin ${s.cashback ? '' : 'off'}"><i></i><b>${s.name}</b></div>`,
+            html: `<div class="pin ${s.cashback === true ? '' : 'off'} ${selectedStation && selectedStation.id === s.id ? 'sel' : ''}"><i></i><b>${s.name}</b></div>`,
             iconSize: [16, 16],
             iconAnchor: [8, 8]
           });
           const marker = L.marker([s.lat, s.lng], { icon }).addTo(markersGroupRef.current);
           marker.on('click', () => setSelectedStation(s));
         });
-      }, [mapReady, onlyCashback, searchTerm, selectedDistrict]);
+      }, [mapReady, onlyCashback, selectedDistrict, selectedStation, searchHits]);
 
       // [수정7,8] 제보 목록 불러오기 (최대 7개, 30초마다 갱신)
       const loadFeedback = () => {
         fetch('/api/feedback')
           .then(r => r.ok ? r.json() : Promise.reject())
-          .then(d => { setFeedbacks(d.slice(0, 7)); setFbMsg(''); })
+          .then(d => { setFeedbacks(d.slice(0, 10)); setFbMsg(''); })
           .catch(() => setFbMsg('제보 서버에 연결되지 않았습니다.'));
       };
       useEffect(() => {
@@ -220,20 +280,22 @@
 
       const handleAddFeedback = (status) => {
         if (!selectedStation) {
-          alert('먼저 지도에서 주유소를 선택해 주세요.');
+          setFbNotice('⚠️ 먼저 지도에서 주유소 점을 눌러 선택해 주세요.');
           return;
         }
+        setFbNotice('등록 중...');
         fetch('/api/feedback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ station: selectedStation.name, status })
         })
           .then(r => {
-            if (r.status === 429) { alert('제보는 1분에 한 번만 가능합니다.'); return; }
+            if (r.status === 429) { setFbNotice('⏱️ 제보는 1분에 한 번만 가능합니다.'); return; }
             if (!r.ok) throw new Error();
-            loadFeedback();
+            setFbNotice('✅ 제보가 등록되었습니다. 감사합니다!');
+            loadFeedback(); // 바로 목록 갱신
           })
-          .catch(() => alert('제보 등록에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
+          .catch(() => setFbNotice('❌ 제보 서버가 아직 연결되지 않아 등록할 수 없습니다.'));
       };
 
       return (
@@ -247,23 +309,48 @@
 
           <main className="max-w-md mx-auto p-4 space-y-4">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 leading-relaxed">
-              ⚠️ 온통대전 정책 및 예산 소진 현황에 따라 가맹 여부와 캐시백 적용이 유동적으로 변동될 수 있습니다.
+              ⚠️ 캐시백은 연 매출 30억 원 이하 가맹점 등 조건에 따라 주유소마다 다르고, 정책·예산에 따라 바뀔 수 있습니다. 지도의 "미확인" 주유소는 결제 전 대전사랑카드 앱의 가맹점 찾기에서 꼭 확인해 주세요.
             </div>
 
             <div className="bg-white p-3 rounded-xl shadow-sm space-y-3">
-              <input
-                type="text"
-                placeholder="주유소 이름 또는 동 이름 검색 (예: 내동, 도마동, 둔산동)"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="주유소·동·도로 이름 검색 (예: 용전, 대흥동, 옥천로)"
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setOpenSug(true); setActiveIdx(-1); setSearchHits([]); }}
+                  onFocus={() => setOpenSug(true)}
+                  onBlur={() => setTimeout(() => setOpenSug(false), 150)}
+                  onKeyDown={onSearchKey}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                {openSug && searchTerm.trim() && (
+                  <ul className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-64 overflow-auto text-sm">
+                    {suggestions.length === 0 && (
+                      <li className="px-3 py-2 text-xs text-slate-500">일치하는 주유소가 없습니다. (현재 동구·중구만 반영되어 있습니다)</li>
+                    )}
+                    {suggestions.slice(0, 8).map((s, i) => (
+                      <li
+                        key={s.id}
+                        onMouseDown={(e) => { e.preventDefault(); pickSearch(s); }}
+                        className={`px-3 py-2 cursor-pointer flex justify-between gap-2 ${i === activeIdx ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                      >
+                        <span className="font-medium text-slate-800 truncate">{s.name}</span>
+                        <span className="text-[11px] text-slate-400 whitespace-nowrap">{s.district} {s.dong}</span>
+                      </li>
+                    ))}
+                    {suggestions.length > 8 && (
+                      <li className="px-3 py-1.5 text-[11px] text-slate-400">외 {suggestions.length - 8}곳 · 엔터를 누르면 전체 {suggestions.length}곳을 지도에 표시합니다</li>
+                    )}
+                  </ul>
+                )}
+              </div>
 
               <div className="flex gap-1 overflow-x-auto pb-1">
                 {districts.map(d => (
                   <button
                     key={d}
-                    onClick={() => { setSelectedDistrict(d); setSelectedStation(null); }}
+                    onClick={() => { setSelectedDistrict(d); setSelectedStation(null); setSearchHits([]); }}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${selectedDistrict === d ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                   >
                     {d}
@@ -276,20 +363,33 @@
                   <input
                     type="checkbox"
                     checked={onlyCashback}
-                    onChange={(e) => setOnlyCashback(e.target.checked)}
+                    onChange={(e) => toggleOnly(e.target.checked)}
                     className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                   />
-                  캐시백 가능만 보기 (🟢)
+                  캐시백 확인된 곳만 보기 (🟢)
                 </label>
                 <span className="text-slate-400">조회: {filteredStations.length}개</span>
               </div>
             </div>
 
+            {(selectedDistrict === '전체' || !READY.includes(selectedDistrict)) && (
+              <div className="bg-sky-50 border border-sky-200 rounded-lg p-3 text-xs text-sky-800 leading-relaxed">
+                {!READY.includes(selectedDistrict) && selectedDistrict !== '전체'
+                  ? `${selectedDistrict} 주유소 데이터는 준비 중입니다. 현재 동구·중구만 공식 자료로 반영되어 있습니다.`
+                  : '현재 동구·중구 주유소(공공데이터 기준)가 반영되어 있습니다. 서구·유성구·대덕구는 준비 중입니다.'}
+              </div>
+            )}
+            {onlyCashback && filteredStations.length === 0 && (selectedDistrict === '전체' || READY.includes(selectedDistrict)) && (
+              <div className="bg-white border rounded-lg p-3 text-xs text-slate-500 text-center">
+                캐시백이 확인된 주유소가 아직 없습니다. "캐시백 확인된 곳만 보기"를 해제하면 전체 주유소가 회색으로 표시됩니다.
+              </div>
+            )}
+
             {/* 지도 영역 */}
             <div className="bg-white border rounded-xl p-2 shadow-sm space-y-2">
               <div className="flex justify-between items-center text-xs text-slate-600 font-bold px-1">
                 <span>🗺️ 대전 지역 주유소 지도</span>
-                <span className="text-emerald-600 text-[11px]">🟢가능 / ⚪불가</span>
+                <span className="text-emerald-600 text-[11px]">🟢 확인됨 / ⚪ 미확인</span>
               </div>
               <div id="map"></div>
             </div>
@@ -302,14 +402,14 @@
                     <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">{selectedStation.district} {selectedStation.dong}</span>
                     <h3 className="text-base font-bold text-slate-900 mt-1">{selectedStation.name}</h3>
                   </div>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${selectedStation.cashback ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
-                    {selectedStation.cashback ? '🟢 캐시백 가능' : '⚪ 캐시백 불가'}
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${selectedStation.cashback === true ? 'bg-emerald-100 text-emerald-800' : selectedStation.cashback === false ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-slate-700'}`}>
+                    {cbText(selectedStation)}
                   </span>
                 </div>
 
                 <div className="text-xs space-y-1 text-slate-600">
                   <p>📍 주소: {selectedStation.address}</p>
-                  <p>📞 연락처: {selectedStation.phone}</p>
+                  <p>📞 연락처: {selectedStation.phone || '전화번호 미등록'}</p>
                 </div>
 
                 <button
@@ -326,7 +426,7 @@
                     {nearby.map(near => (
                       <div key={near.id} onClick={() => { setSelectedStation(near); mapRef.current && mapRef.current.panTo([near.lat, near.lng]); }} className="bg-white p-2 rounded border border-emerald-100 text-xs cursor-pointer hover:bg-emerald-50 flex justify-between">
                         <span className="font-bold text-slate-800 truncate">{near.name}</span>
-                        <span className="text-[10px] text-emerald-600 font-medium">{near.cashback ? '🟢 가능' : '⚪ 불가'}</span>
+                        <span className="text-[10px] text-emerald-600 font-medium">{cbText(near)}</span>
                       </div>
                     ))}
                   </div>
@@ -353,7 +453,7 @@
 
             {/* [수정7,8] 시민 실시간 피드백 */}
             <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-              <h4 className="text-xs font-bold text-slate-800">💬 시민 실시간 이용 현황 (최근 7건)</h4>
+              <h4 className="text-xs font-bold text-slate-800">💬 시민 실시간 이용 현황 (최근 10건)</h4>
 
               <div className="bg-slate-50 p-3 rounded-lg border space-y-2">
                 <div className="text-xs text-slate-700">
@@ -373,6 +473,7 @@
                     🔴 캐시백 불가
                   </button>
                 </div>
+                {fbNotice && <p className="text-[11px] text-slate-600">{fbNotice}</p>}
               </div>
 
               <div className="space-y-1">
@@ -405,6 +506,9 @@
                 건의사항 작성하기 ↗
               </a>
             </div>
+            <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+              주유소 정보 출처: 대전 동구(2026-07-20 기준)·중구(2026-01-06 기준) 공공데이터. 실제와 다를 수 있습니다.
+            </p>
           </main>
         </div>
       );
