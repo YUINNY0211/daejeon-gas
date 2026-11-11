@@ -61,7 +61,7 @@
     function App() {
       const [selectedDistrict, setSelectedDistrict] = useState('전체');
       const [searchTerm, setSearchTerm] = useState('');
-      const [onlyCashback, setOnlyCashback] = useState(true);
+      const [onlyCashback, setOnlyCashback] = useState(false);
       const [selectedStation, setSelectedStation] = useState(null);
       const [searchHits, setSearchHits] = useState([]);   // 검색 결과로 지도에 표시할 주유소
       const [openSug, setOpenSug] = useState(false);       // 자동완성 목록 열림
@@ -82,7 +82,7 @@
         // 출처: 대전 동구(기준일 2026-07-20)·중구(기준일 2026-01-06) 공공데이터 주유소 현황
         // cashback: true=확인됨 / false=불가 확인 / null=미확인 (확인된 곳만 true로 바꾸세요)
         { id: 1, name: "판암하늘셀프주유소", district: "동구", dong: "판암동", address: "대전 동구 옥천로 81-1", phone: "042-286-5189", cashback: null, lat: 36.3194358, lng: 127.4501899 },
-        { id: 2, name: "주식회사 대동현대셀프", district: "동구", dong: "대동", address: "대전 동구 계족로 126", phone: "042-283-5189", cashback: null, lat: 36.325597, lng: 127.4456242 },
+        { id: 2, name: "주식회사 대동현대셀프", district: "동구", dong: "대동", address: "대전 동구 계족로 126", phone: "042-283-5189", cashback: true, lat: 36.325597, lng: 127.4456242 },
         { id: 3, name: "내트럭(주) 남대전사업소", district: "동구", dong: "구도동", address: "대전 동구 대전로 1", phone: "042-271-5673", cashback: null, lat: 36.2721016, lng: 127.4720235 },
         { id: 4, name: "산내제일주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 269", phone: "042-282-5189", cashback: null, lat: 36.2923286, lng: 127.4621434 },
         { id: 5, name: "(주)하늘셀프주유소", district: "동구", dong: "천동", address: "대전 동구 대전로 549", phone: "042-283-5151", cashback: null, lat: 36.3116232, lng: 127.4446841 },
