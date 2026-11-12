@@ -60,7 +60,7 @@
     const escH = (t) => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     window.navermap_authFailure = () => {
       const el = document.getElementById('map');
-      if (el) el.innerHTML = '<p style="padding:12px;font-size:12px">지도 인증에 실패했습니다. 네이버 클라우드 콘솔에서 Client ID와 Web 서비스 URL 등록을 확인해 주세요.</p>';
+      if (el) el.innerHTML = '<div style="padding:12px;font-size:12px;line-height:1.6">❌ 네이버 지도 인증 실패<br>① index.html의 Client ID가 맞는지(시크릿 키 아님)<br>② 콘솔 Web 서비스 URL에 아래 주소가 등록되어 있는지<br>③ Dynamic Map이 선택되어 있는지<br><b>현재 접속 주소: ' + location.origin + '</b></div>';
     };
 
     // 캐시백 상태 문구: true=가능 / false=불가 / null=미확인
@@ -400,7 +400,10 @@
       // 네이버 지도 생성 (로고·저작권 표기는 기본값 그대로 둡니다)
       useEffect(() => {
         if (mapRef.current || !document.getElementById('map')) return;
-        if (typeof naver === 'undefined' || !naver.maps) return;
+        if (typeof naver === 'undefined' || !naver.maps) {
+          document.getElementById('map').innerHTML = '<div style="padding:12px;font-size:12px;line-height:1.6">❌ 네이버 지도 스크립트를 불러오지 못했습니다.<br>index.html 위쪽의 YOUR_NAVER_CLIENT_ID를 발급받은 Client ID로 바꿨는지, 광고 차단 확장 프로그램이 꺼져 있는지 확인해 주세요.</div>';
+          return;
+        }
         const map = new naver.maps.Map('map', {
           center: LL(HOME[0], HOME[1]),
           zoom: HOME[2],
