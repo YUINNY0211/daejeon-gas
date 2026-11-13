@@ -9,10 +9,30 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- 네이버 지도 (네이버 클라우드 플랫폼 Client ID를 아래 YOUR_NAVER_CLIENT_ID 자리에 넣으세요) -->
+  <!-- 네이버 지도 (네이버 클라우드 플랫폼 Client ID를 아래 이미 발급받은 Client ID 사용 중) -->
   <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=npz507ygfp"></script>
 
   <style>
+    body { background: #f3faf6; color:#10264d; }
+    .hero { background:radial-gradient(ellipse at 85% 10%,rgba(69,179,126,.2),transparent 48%),linear-gradient(135deg,#f7fcf8 0%,#e4f4e9 100%); border-radius:0 0 28px 28px; }
+    .hero-title { color:#183d2d; line-height:1.08; }
+.hanbit-art { position:absolute; right:5%; bottom:0; width:min(42vw,280px); height:125px; opacity:.25; pointer-events:none; }
+    .hero-title em { color:#087f53; font-style:normal; }
+    .icon-tile { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; min-height:108px; border:1px solid #e6edfa; background:linear-gradient(160deg,#fff,#f8fbff); color:#142d59; box-shadow:0 7px 18px rgba(26,88,58,.08); transition:transform .18s,box-shadow .18s; }
+    .icon-tile:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(26,88,58,.13); }
+    .tile-icon { color:#07834f; font-size:27px; line-height:1; }
+    .bottom-nav { box-shadow:0 -8px 24px rgba(26,88,58,.10); padding-bottom:env(safe-area-inset-bottom); }
+    .station-row { border-bottom:1px solid #e6edf7; }
+    .station-icon { display:flex; width:48px; height:48px; align-items:center; justify-content:center; border-radius:15px; background:#eaf6ee; color:#168653; font-size:24px; flex:none; }
+    .participation-card { background:linear-gradient(110deg,#e9f8f0,#fff); border:1px solid #d2eadd; }
+    .map-count { position:absolute; right:14px; top:14px; z-index:5; border-radius:999px; padding:9px 14px; background:rgba(255,255,255,.95); color:#1e563e; font-weight:800; box-shadow:0 4px 18px rgba(26,88,58,.16); }
+    .app-header { background: linear-gradient(115deg, #087b50 0%, #159665 58%, #83c8a5 100%); }
+    .brand-mark { display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:14px; background:rgba(255,255,255,.58); font-size:22px; }
+    .app-main { scroll-margin-top: 76px; }
+    .notice-card { background:linear-gradient(110deg,#edf5ff,#f8fbff); border:1px solid #cdebdc; color:#254f3c; }
+    .info-card { border:1px solid #e3eaf5; border-radius:16px; background:#fff; padding:14px; }
+    .info-card summary { cursor:pointer; font-weight:700; color:#1b543d; }
+    .info-card p { margin-top:9px; line-height:1.7; color:#53657f; }
     #map { height: 42vh; min-height: 300px; max-height: 420px; width: 100%; border-radius: 0.75rem; z-index: 1; }
     @media (min-width: 768px) { #map { height: 72vh; min-height: 560px; max-height: 820px; } }
     /* 네이버 로고·저작권 표기는 가리거나 수정하지 않습니다 */
@@ -72,13 +92,16 @@
     function App() {
       const [selectedDistrict, setSelectedDistrict] = useState('전체');
       const [searchTerm, setSearchTerm] = useState('');
-      const [onlyCashback, setOnlyCashback] = useState(true);
+      const [onlyCashback, setOnlyCashback] = useState(false);
       const [selectedStation, setSelectedStation] = useState(null);
+      const [menuOpen, setMenuOpen] = useState(false);
+      const [infoPage, setInfoPage] = useState('');
+      const [showAllStations, setShowAllStations] = useState(false);
       const [searchHits, setSearchHits] = useState([]);   // 검색 결과로 지도에 표시할 주유소
       const [openSug, setOpenSug] = useState(false);       // 자동완성 목록 열림
       const [activeIdx, setActiveIdx] = useState(-1);      // 방향키로 고른 항목
 
-      // [수정7,8] 시민 제보: 서버(Cloudflare D1)에서 불러옴, 최대 7개
+      // 시민 제보는 서버에서 불러오며, 선택 지점 최대 5건·전체 최대 10건을 표시
       const [feedbacks, setFeedbacks] = useState([]);
       const [fbMsg, setFbMsg] = useState('');
       const [fbNotice, setFbNotice] = useState(''); // 버튼 클릭 결과 안내
@@ -92,227 +115,227 @@
       const stations = [
         // 출처: 운영자 정리 목록(AI제출자료_1.xlsx) 221곳 / 좌표: 검증된 값만 사용(없으면 null → 주소 변환 후 입력)
         // cashback: true=캐시백 가능(엑셀 Y) / false=불가 / self: Y=셀프, N=일반, -=정보없음
-        { id: 1, name: "천지인주유소", district: "중구", dong: "옥계동", address: "대전 중구 대종로 44", phone: "042-272-6100", brand: "S-OIL", self: "Y", cashback: false, lat: 36.297639, lng: 127.4560612 },
-        { id: 2, name: "(주)김여사네 대전지점", district: "중구", dong: "선화동", address: "대전 중구 대종로 558 (선화동)", phone: "042-254-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3327149, lng: 127.4211939 },
-        { id: 3, name: "㈜남강 중앙로셀프주유소", district: "중구", dong: "대흥동", address: "대전 중구 중앙로 64", phone: "042-256-0238", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3239982, lng: 127.4190481 },
-        { id: 4, name: "안영IC주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 188 (안영동)", phone: "042-584-5145", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.2871486, lng: 127.3789725 },
-        { id: 5, name: "우리셋주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 150", phone: "042-581-0678", brand: "S-OIL", self: "Y", cashback: false, lat: 36.2845751, lng: 127.3767814 },
-        { id: 6, name: "(주)석교주유소", district: "중구", dong: "석교동", address: "대전 중구 대종로 207 (석교동)", phone: "042-273-7755", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3082974, lng: 127.443783 },
-        { id: 7, name: "오월드주유소", district: "중구", dong: "사정동", address: "대전 중구 대둔산로 359 (사정동)", phone: "042-583-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3013344, lng: 127.385623 },
-        { id: 8, name: "옥계셀프주유소", district: "중구", dong: "옥계동", address: "대전 중구 대종로 103", phone: "042-285-1297", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.301623, lng: 127.4516096 },
-        { id: 9, name: "태성주유소", district: "중구", dong: "중촌동", address: "대전 중구 동서대로 1459 (중촌동)", phone: "042-252-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.337813, lng: 127.416951 },
-        { id: 10, name: "중촌셀프주유소", district: "중구", dong: "선화동", address: "대전 중구 동서대로 1434 (선화동)", phone: "-", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3355406, lng: 127.415077 },
-        { id: 11, name: "(주)에너비즈 삼성주유소", district: "중구", dong: "오류동", address: "대전 중구 계룡로 778 (오류동)", phone: "042-537-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3294136, lng: 127.403471 },
-        { id: 12, name: "하나로Self주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 211 (안영동)", phone: "042-581-5189", brand: "SK에너지", self: "Y", cashback: false, lat: 36.2892152, lng: 127.3801358 },
-        { id: 13, name: "안영셀프주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 241 (안영동)", phone: "042-585-6001", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.2916548, lng: 127.3815614 },
-        { id: 14, name: "동물원Self주유소", district: "중구", dong: "사정동", address: "대전 중구 대둔산로 270 (사정동)", phone: "042-587-5151", brand: "SK에너지", self: "Y", cashback: false, lat: 36.2937384, lng: 127.3836834 },
-        { id: 15, name: "동건셀프주유소", district: "중구", dong: "유천동", address: "대전 중구 문화로 97", phone: "042-585-8730", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3123667, lng: 127.3965688 },
-        { id: 16, name: "이화주유소", district: "중구", dong: "석교동", address: "대전 중구 대종로 166", phone: "042-274-5189", brand: "SK에너지", self: "N", cashback: true, lat: 36.3066301, lng: 127.4482354 },
-        { id: 17, name: "소망주유소", district: "중구", dong: "문화동", address: "대전 중구 보문산로 307 (문화동)", phone: "042-584-0413", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3107876, lng: 127.4120481 },
-        { id: 18, name: "(주)농협대전유통 하나로주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로199번길 43", phone: "042-580-5083", brand: "NH-OIL", self: "Y", cashback: false, lat: 36.2885909, lng: 127.3784461 },
-        { id: 19, name: "서대전농협주유소", district: "중구", dong: "유천동", address: "대전 중구 계백로 1555 (유천동)", phone: "042-535-9251", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3176547, lng: 127.3929772 },
-        { id: 20, name: "(주)제트 동서로주유소", district: "중구", dong: "오류동", address: "대전 중구 동서대로 1293", phone: "042-532-5050", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3283379, lng: 127.4033193 },
-        { id: 21, name: "금성주유소", district: "중구", dong: "태평동", address: "대전 중구 동서대로 1183 (태평동)", phone: "042-525-1183", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3271044, lng: 127.3915765 },
-        { id: 22, name: "행복가득주유소", district: "중구", dong: "산성동", address: "대전광역시 중구 보문산로 86", phone: "042-586-5188", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3052868, lng: 127.3899207 },
-        { id: 23, name: "거북이주유소", district: "중구", dong: "산성동", address: "대전 중구 문화로 35", phone: "042-584-8251", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.3106079, lng: 127.3898047 },
-        { id: 24, name: "충남주유소", district: "중구", dong: "대흥동", address: "대전 중구 대흥로 80 (대흥동)", phone: "042-256-0101", brand: "자가상표", self: "N", cashback: true, lat: 36.3230601, lng: 127.4213834 },
-        { id: 25, name: "HD현대오일뱅크㈜직영 충무주유소", district: "중구", dong: "부사동", address: "대전 중구 충무로 141 (부사동)", phone: "042-222-8788", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.3200186, lng: 127.4323125 },
-        { id: 26, name: "도서관셀프주유소", district: "중구", dong: "문화동", address: "대전 광역시 중구 보문산로 353", phone: "042-581-2148", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.313758, lng: 127.4153711 },
-        { id: 27, name: "삼육주유소", district: "중구", dong: "중촌동", address: "대전 중구 대전천서로 757", phone: "042-257-3636", brand: "SK에너지", self: "Y", cashback: true, lat: 36.347818, lng: 127.4068494 },
-        { id: 28, name: "청정주유소", district: "중구", dong: "오류동", address: "대전광역시 중구 계룡로 756 (오류동)", phone: "042-536-5151", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3309334, lng: 127.4017666 },
-        { id: 29, name: "두바이주유소 도안씨티㈜", district: "중구", dong: "대사동", address: "대전 중구 보문로 117", phone: "042-242-5250", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3141697, lng: 127.4278608 },
+        { id: 1, name: "천지인주유소", district: "중구", dong: "옥계동", address: "대전 중구 대종로 44", phone: "042-272-6100", brand: "S-OIL", self: "Y", cashback: false, lat: 36.2975896, lng: 127.4560474 },
+        { id: 2, name: "(주)김여사네 대전지점", district: "중구", dong: "선화동", address: "대전 중구 대종로 558 (선화동)", phone: "042-254-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3326648, lng: 127.4211797 },
+        { id: 3, name: "㈜남강 중앙로셀프주유소", district: "중구", dong: "대흥동", address: "대전 중구 중앙로 64", phone: "042-256-0238", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3239481, lng: 127.4190341 },
+        { id: 4, name: "안영IC주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 188 (안영동)", phone: "042-584-5145", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.2870983, lng: 127.3789594 },
+        { id: 5, name: "우리셋주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 150", phone: "042-581-0678", brand: "S-OIL", self: "Y", cashback: false, lat: 36.2845248, lng: 127.3767683 },
+        { id: 6, name: "(주)석교주유소", district: "중구", dong: "석교동", address: "대전 중구 대종로 207 (석교동)", phone: "042-273-7755", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3082477, lng: 127.4437691 },
+        { id: 7, name: "오월드주유소", district: "중구", dong: "사정동", address: "대전 중구 대둔산로 359 (사정동)", phone: "042-583-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3012856, lng: 127.38561 },
+        { id: 8, name: "옥계셀프주유소", district: "중구", dong: "옥계동", address: "대전 중구 대종로 103", phone: "042-285-1297", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3015735, lng: 127.4515957 },
+        { id: 9, name: "태성주유소", district: "중구", dong: "중촌동", address: "대전 중구 동서대로 1459 (중촌동)", phone: "042-252-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3377524, lng: 127.4168437 },
+        { id: 10, name: "중촌셀프주유소", district: "중구", dong: "선화동", address: "대전 중구 동서대로 1434 (선화동)", phone: "-", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3354905, lng: 127.4150628 },
+        { id: 11, name: "(주)에너비즈 삼성주유소", district: "중구", dong: "오류동", address: "대전 중구 계룡로 778 (오류동)", phone: "042-537-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3293634, lng: 127.403457 },
+        { id: 12, name: "하나로Self주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 211 (안영동)", phone: "042-581-5189", brand: "SK에너지", self: "Y", cashback: false, lat: 36.2891649, lng: 127.3801227 },
+        { id: 13, name: "안영셀프주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로 241 (안영동)", phone: "042-585-6001", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.2916045, lng: 127.3815482 },
+        { id: 14, name: "동물원Self주유소", district: "중구", dong: "사정동", address: "대전 중구 대둔산로 270 (사정동)", phone: "042-587-5151", brand: "SK에너지", self: "Y", cashback: false, lat: 36.2936881, lng: 127.3836701 },
+        { id: 15, name: "동건셀프주유소", district: "중구", dong: "유천동", address: "대전 중구 문화로 97", phone: "042-585-8730", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3123164, lng: 127.3965551 },
+        { id: 16, name: "이화주유소", district: "중구", dong: "석교동", address: "대전 중구 대종로 166", phone: "042-274-5189", brand: "SK에너지", self: "N", cashback: true, lat: 36.3065805, lng: 127.4482215 },
+        { id: 17, name: "소망주유소", district: "중구", dong: "문화동", address: "대전 중구 보문산로 307 (문화동)", phone: "042-584-0413", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3107376, lng: 127.4120343 },
+        { id: 18, name: "(주)농협대전유통 하나로주유소", district: "중구", dong: "안영동", address: "대전 중구 대둔산로199번길 43", phone: "042-580-5083", brand: "NH-OIL", self: "Y", cashback: false, lat: 36.2885406, lng: 127.378433 },
+        { id: 19, name: "서대전농협주유소", district: "중구", dong: "유천동", address: "대전 중구 계백로 1555 (유천동)", phone: "042-535-9251", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3176044, lng: 127.3929635 },
+        { id: 20, name: "(주)제트 동서로주유소", district: "중구", dong: "오류동", address: "대전 중구 동서대로 1293", phone: "042-532-5050", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3282876, lng: 127.4033053 },
+        { id: 21, name: "금성주유소", district: "중구", dong: "태평동", address: "대전 중구 동서대로 1183 (태평동)", phone: "042-525-1183", brand: "S-OIL", self: "Y", cashback: true, lat: 36.327054, lng: 127.3915626 },
+        { id: 22, name: "행복가득주유소", district: "중구", dong: "산성동", address: "대전광역시 중구 보문산로 86", phone: "042-586-5188", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3052365, lng: 127.3899072 },
+        { id: 23, name: "거북이주유소", district: "중구", dong: "산성동", address: "대전 중구 문화로 35", phone: "042-584-8251", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.3105576, lng: 127.3897911 },
+        { id: 24, name: "충남주유소", district: "중구", dong: "대흥동", address: "대전 중구 대흥로 80 (대흥동)", phone: "042-256-0101", brand: "자가상표", self: "N", cashback: true, lat: 36.32301, lng: 127.4213694 },
+        { id: 25, name: "HD현대오일뱅크㈜직영 충무주유소", district: "중구", dong: "부사동", address: "대전 중구 충무로 141 (부사동)", phone: "042-222-8788", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.3199687, lng: 127.4322985 },
+        { id: 26, name: "도서관셀프주유소", district: "중구", dong: "문화동", address: "대전 광역시 중구 보문산로 353", phone: "042-581-2148", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3137121, lng: 127.4154481 },
+        { id: 27, name: "삼육주유소", district: "중구", dong: "중촌동", address: "대전 중구 대전천서로 757", phone: "042-257-3636", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3477676, lng: 127.4068351 },
+        { id: 28, name: "청정주유소", district: "중구", dong: "오류동", address: "대전광역시 중구 계룡로 756 (오류동)", phone: "042-536-5151", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3308831, lng: 127.4017526 },
+        { id: 29, name: "두바이주유소 도안씨티㈜", district: "중구", dong: "대사동", address: "대전 중구 보문로 117", phone: "042-242-5250", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3141198, lng: 127.4278469 },
         { id: 30, name: "진성주유소", district: "중구", dong: "호동", address: "대전광역시 중구 대종로 122", phone: "042-271-8511", brand: "GS칼텍스", self: "Y", cashback: true, lat: 36.3034717, lng: 127.4511268 },
-        { id: 31, name: "대양석유㈜ 중리주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1186", phone: "042-622-9939", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 32, name: "㈜태석", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1180", phone: "042-673-1230", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 33, name: "중도석유(주)오정동주유소", district: "대덕구", dong: "오정동", address: "대전 대덕구 대전로 1144 (오정동)", phone: "042-672-4843", brand: "GS칼텍스", self: "N", cashback: false, lat: null, lng: null },
-        { id: 34, name: "쌍용주유소 선인에너지", district: "대덕구", dong: "연축동", address: "대전 대덕구 신탄진로 83 (연축동)", phone: "042-628-0088", brand: "알뜰주유소", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 35, name: "우리원셀프주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 383", phone: "0507-1430-5185", brand: "S-OIL", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 36, name: "으뜸회덕주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 222", phone: "042-628-1496", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 37, name: "와동셀프주유소 ㈜에스에이치에너지", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 386", phone: "042-710-0609", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 38, name: "럭키셀프주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1007", phone: "042-000-0000", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 39, name: "소태산주유소", district: "대덕구", dong: "신대동", address: "대전 대덕구 신탄진로 163 (신대동)", phone: "042-636-4438", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 40, name: "OK주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 대전로 1312 (읍내동)", phone: "042-633-8757", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 41, name: "은빛주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 70 (읍내동)", phone: "042-631-5104", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 42, name: "㈜오일마스터 킹콩주유소 대전지점", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 107 (읍내동)", phone: "042-627-5551", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 43, name: "신탄진IC주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 665", phone: "042-932-7888", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 44, name: "상서현대셀프", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 519 (상서동)", phone: "042-931-8097", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: null, lng: null },
-        { id: 45, name: "㈜연정 농수산주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1014", phone: "042-635-1587", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 46, name: "당산주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 135 (읍내동)", phone: "042-622-2133", brand: "SK에너지", self: "N", cashback: true, lat: null, lng: null },
-        { id: 47, name: "원촌주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 55 (읍내동)", phone: "042-633-6330", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 48, name: "금강주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 536", phone: "042-931-6633", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 49, name: "신탄진알뜰주유소", district: "대덕구", dong: "", address: "대전 대덕구 대덕대로1527번길 374", phone: "042-932-3000", brand: "알뜰주유소", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 50, name: "대덕주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 470", phone: "042-936-9934", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 51, name: "제일셀프주유소", district: "대덕구", dong: "비래동", address: "대전 대덕구 동서대로 1750 (비래동)", phone: "042-638-4255", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 52, name: "스마일주유소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 622 (상서동)", phone: "042-934-5188", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 53, name: "대성주유소", district: "대덕구", dong: "", address: "대전 대덕구 덕암로 219", phone: "042-628-5180", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 54, name: "맘모스주유소", district: "대덕구", dong: "", address: "대전 대덕구 동서대로 1756", phone: "042-636-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 55, name: "대림석유(주) 신탄진주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로681번길 22", phone: "042-671-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 56, name: "용은주유소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 559 (상서동)", phone: "042-936-0068", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 57, name: "성찬셀프주유소", district: "대덕구", dong: "신탄진동", address: "대전 대덕구 신탄진로 764 (신탄진동)", phone: "042-346-1208", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 58, name: "일등주유소", district: "대덕구", dong: "평촌동", address: "대전 대덕구 신탄진로 636 (평촌동)", phone: "042-933-1346", brand: "자가상표", self: "N", cashback: false, lat: null, lng: null },
-        { id: 59, name: "영풍에너지 주식회사", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 584 (상서동)", phone: "042-934-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 60, name: "신탄진농협주유소", district: "대덕구", dong: "", address: "대전 대덕구 덕암로 164", phone: "042-932-5736", brand: "NH-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 61, name: "(주)동서로 대전IC주유소", district: "대덕구", dong: "", address: "대전 대덕구 동서대로 1787", phone: "042-627-5145", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 62, name: "대양석유㈜ 대덕주유소", district: "대덕구", dong: "", address: "대전 대덕구 동서대로 1811", phone: "042-633-7775", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 63, name: "삼미상사㈜ 대원셀프주유소", district: "대덕구", dong: "비래동", address: "대전 대덕구 동서대로 1772 (비래동)", phone: "042-673-7412", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 64, name: "CJ대한통운㈜ 대전지사주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 신탄진로 1 (읍내동)", phone: "042-625-5189", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 65, name: "대전북부새마을금고주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 792", phone: "042-933-5182", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 66, name: "㈜학하 목상셀프주유소", district: "대덕구", dong: "목상동", address: "대전 대덕구 대덕대로 1500 (목상동)", phone: "070-7722-5153", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 67, name: "세종Self주유소", district: "대덕구", dong: "목상동", address: "대전 대덕구 대덕대로 1494 (목상동)", phone: "042-934-5189", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 68, name: "YM21유통㈜ 신탄진(서울)주유소/충전소", district: "대덕구", dong: "", address: "대전 대덕구 산업단지로 27", phone: "042-934-2445", brand: "알뜰(ex)", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 69, name: "오정동셀프주유소", district: "대덕구", dong: "오정동", address: "대전 대덕구 오정로 123 (오정동)", phone: "042-621-2997", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 70, name: "갑천주유소", district: "대덕구", dong: "신대동", address: "대전 대덕구 아리랑로55번길 189 (신대동)", phone: "042-635-4062", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 71, name: "라자로주유소", district: "대덕구", dong: "", address: "대전 대덕구 대전로 1390", phone: "042-632-5151", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 72, name: "신일주유소", district: "대덕구", dong: "", address: "대전 대덕구 산업단지로 112", phone: "042-936-5145", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 73, name: "대전이데아주유소", district: "대덕구", dong: "중리동", address: "대전 대덕구 한밭대로 1145 (중리동)", phone: "042-633-7186", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 74, name: "대도주유소", district: "대덕구", dong: "신탄진동", address: "대전 대덕구 신탄진로756번길 2 (신탄진동)", phone: "042-931-7600", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: null, lng: null },
-        { id: 75, name: "현대오일뱅크㈜직영 4공단주유소", district: "대덕구", dong: "", address: "대전 대덕구 대덕대로 1412", phone: "042-935-6051", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: null, lng: null },
-        { id: 76, name: "현대오일뱅크㈜직영 대덕산단주유소", district: "대덕구", dong: "", address: "대전 대덕구 문평동로 2", phone: "042-933-0115", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: null, lng: null },
-        { id: 77, name: "씨앤에스유통(주)회덕아이씨주유소", district: "대덕구", dong: "회덕동", address: "대전광역시 대덕구 갑천도시고속도로 1084 (회덕동)", phone: "042-672-5151", brand: "S-OIL", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 78, name: "공단주유소", district: "대덕구", dong: "대화동", address: "대전 대덕구 대전로 1285 (대화동)", phone: "042-634-0225", brand: "GS칼텍스", self: "N", cashback: false, lat: null, lng: null },
-        { id: 79, name: "비전운수(주)산업단지주유소", district: "대덕구", dong: "", address: "대전 대덕구 산업단지로 107", phone: "042-935-5111", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 80, name: "개나리주유소오일뱅크", district: "대덕구", dong: "오정동", address: "대전 대덕구 오정로 53 (오정동)", phone: "042-631-4466", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: null, lng: null },
-        { id: 81, name: "(주)차세대주유소", district: "대덕구", dong: "", address: "대전광역시 대덕구 아리랑로 73", phone: "042-626-5051", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 82, name: "한솔주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1036", phone: "042-622-6680", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 83, name: "순우리주유소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 533 (상서동)", phone: "042-931-5182", brand: "자가상표", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 84, name: "GS칼텍스 직영 톨게이트", district: "대덕구", dong: "비래동", address: "대전광역시 대덕구 동서대로 1762 (비래동)", phone: "042-622-1544", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 85, name: "대양석유㈜ 내동주유소", district: "서구", dong: "", address: "대전 서구 동서대로 1081", phone: "042-533-2838", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 86, name: "(유)용명에너지 신대전셀프주유소", district: "서구", dong: "", address: "대전 서구 도산로 213", phone: "042-533-6045", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 87, name: "우리하나셀프주유소", district: "서구", dong: "", address: "대전 서구 동서대로 1120", phone: "042-522-5179", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 88, name: "남선석유㈜ 계백셀프주유소", district: "서구", dong: "", address: "대전 서구 계백로 1327", phone: "042-523-5184", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 89, name: "중도석유(주) 도마동주유소", district: "서구", dong: "도마동", address: "대전 서구 계백로 1371 (도마동)", phone: "042-523-0589", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 90, name: "도마진실주유소", district: "서구", dong: "", address: "대전 서구 도산로 123", phone: "042-522-3764", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 91, name: "굿모닝주유소", district: "서구", dong: "", address: "대전 서구 계백로 1376", phone: "042-583-5182", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 92, name: "(주)혜천셀프주유소", district: "서구", dong: "", address: "대전 서구 혜천로 28", phone: "042-587-5189", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 93, name: "대림주유소", district: "서구", dong: "정림동", address: "대전 서구 계백로 1290 (정림동)", phone: "042-586-5102", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 94, name: "프렌즈스테이션㈜제이에이치에스", district: "서구", dong: "", address: "대전 서구 계백로 838", phone: "042-544-5185", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 95, name: "주홍셀프", district: "서구", dong: "탄방동", address: "대전 서구 도산로 475 (탄방동)", phone: "042-485-8363", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 96, name: "코끼리셀프주유소", district: "서구", dong: "용문동", address: "대전 서구 도산로 446 (용문동)", phone: "042-522-3240", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 97, name: "탄방주유소", district: "서구", dong: "", address: "대전 서구 유등로 659", phone: "042-487-9005", brand: "알뜰주유소", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 98, name: "(주)에너비즈 둔산주유소", district: "서구", dong: "탄방동", address: "대전 서구 유등로 667 (탄방동)", phone: "042-487-7090", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 99, name: "(주)에너비즈 명품주유소", district: "서구", dong: "도마동", address: "대전 서구 배재로 218 (도마동)", phone: "042-521-0051", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 100, name: "중도석유(주)월드컵주유소", district: "서구", dong: "탄방동", address: "대전 서구 문정로 12 (탄방동)", phone: "042-483-5760", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 101, name: "중도석유(주) 대덕주유소", district: "서구", dong: "월평동", address: "대전 서구 월평북로 84 (월평동)", phone: "042-482-3835", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 102, name: "극동유화(주) 한밭주유소", district: "서구", dong: "둔산2동", address: "대전 서구 문정로 3 (둔산2동)", phone: "042-471-5189", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 103, name: "지에스칼텍스㈜구봉산셀프주유소", district: "서구", dong: "", address: "대전 서구 구봉로 208", phone: "042-256-8333", brand: "GS칼텍스", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 104, name: "㈜가수원주유소", district: "서구", dong: "가수원동", address: "대전 서구 계백로 1176 (가수원동)", phone: "042-543-5189", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 105, name: "갈마주유소", district: "서구", dong: "", address: "대전 서구 신갈마로 130", phone: "042-526-0890", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 106, name: "현대셀프주유소", district: "서구", dong: "변동", address: "대전 서구 변동로 114 (변동)", phone: "042-535-0885", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 107, name: "그린주유소", district: "서구", dong: "", address: "대전 서구 동서대로 953", phone: "042-534-5301", brand: "알뜰주유소", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 108, name: "KH에너지㈜직영 둔산주유소", district: "서구", dong: "", address: "대전 서구 둔산로 139", phone: "042-484-5531", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 109, name: "중동주유소", district: "서구", dong: "갈마동", address: "대전 서구 계룡로 344 (갈마동)", phone: "042-533-7088", brand: "알뜰주유소", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 110, name: "디에스주유소", district: "서구", dong: "도마동", address: "대전 서구 배재로 210 (도마동)", phone: "0507-1398-3841", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 111, name: "㈜뉴월드에너지", district: "서구", dong: "", address: "대전 서구 배재로 205", phone: "042-526-3840", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: null, lng: null },
-        { id: 112, name: "씨앤에스유통㈜ 호수공원주유소", district: "서구", dong: "정림동", address: "대전 서구 계백로 1259 (정림동)", phone: "042-534-5189", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 113, name: "기성농협주유소", district: "서구", dong: "", address: "대전 서구 세점길 7", phone: "042-581-4615", brand: "NH-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 114, name: "씨앤에스유통㈜도안신도시주유소", district: "서구", dong: "", address: "대전 서구 도안동로 277", phone: "042-545-2227", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 115, name: "괴정주유소", district: "서구", dong: "", address: "대전 서구 괴정로 113", phone: "042-525-1551", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 116, name: "(주)동건에너지 만년교셀프주유소", district: "서구", dong: "", address: "대전 서구 계룡로 202", phone: "042-525-6643", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 117, name: "삼정주유소", district: "서구", dong: "만년동", address: "대전 서구 대덕대로 384 (만년동)", phone: "042-488-3326", brand: "S-OIL", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 118, name: "백산주유소", district: "서구", dong: "변동", address: "대전 서구 동서대로 1068 (변동)", phone: "042-534-4678", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 119, name: "(주)하늘셀프주유소", district: "동구", dong: "천동", address: "대전 동구 대전로 549", phone: "042-283-5151", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3116232, lng: 127.4446841 },
-        { id: 120, name: "㈜더유에너지 동원주유소", district: "동구", dong: "삼정동", address: "대전 동구 옥천로 355-3", phone: "042-274-5466", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3262539, lng: 127.4727472 },
-        { id: 121, name: "㈜더유에너지 태암셀프주유소", district: "동구", dong: "", address: "대전 동구 대전로 264", phone: "042-282-5466", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 122, name: "대양석유㈜ 덕성셀프주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 287", phone: "042-286-5151", brand: "SK에너지", self: "Y", cashback: true, lat: 36.2937276, lng: 127.4613929 },
-        { id: 123, name: "아원주유소", district: "동구", dong: "성남동", address: "대전 동구 계족로 326", phone: "042-625-2928", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3414894, lng: 127.4358486 },
-        { id: 124, name: "용전셀프주유소", district: "동구", dong: "홍도동", address: "대전 동구 동서대로 1627", phone: "042-637-8838", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.347056, lng: 127.4307383 },
-        { id: 125, name: "동일석유㈜대전주유소", district: "동구", dong: "용전동", address: "대전 동구 계족로 436 (용전동)", phone: "042-673-8880", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3506338, lng: 127.4326965 },
-        { id: 126, name: "판암하늘셀프주유소", district: "동구", dong: "", address: "대전 동구 옥천로 77", phone: "042-286-5189", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3194358, lng: 127.4501899 },
-        { id: 127, name: "산내제일주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 269 (대성동)", phone: "042-282-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.2923286, lng: 127.4621434 },
-        { id: 128, name: "주식회사대동현대셀프", district: "동구", dong: "대동", address: "대전 동구 계족로 126", phone: "042-283-5189", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.325597, lng: 127.4456242 },
-        { id: 129, name: "재하주유소", district: "동구", dong: "성남동", address: "대전 동구 동서대로 1664 (성남동)", phone: "042-626-6626", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3481201, lng: 127.4349134 },
-        { id: 130, name: "㈜한양페트로 에이스주유소", district: "동구", dong: "가양동", address: "대전 동구 동대전로 253", phone: "042-632-5289", brand: "SK에너지", self: "Y", cashback: true, lat: 36.343722, lng: 127.4466816 },
-        { id: 131, name: "(주)이선 광장셀프주유소", district: "동구", dong: "성남동", address: "대전 동구 계족로 305", phone: "042-623-2368", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3395266, lng: 127.4364773 },
-        { id: 132, name: "유원주유소", district: "동구", dong: "용전동", address: "대전 동구 계족로 513", phone: "042-672-3613", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.357493, lng: 127.4324736 },
-        { id: 133, name: "㈜용운주유소", district: "동구", dong: "용운동", address: "대전 동구 백룡로 77 (용운동)", phone: "042-471-6699", brand: "알뜰주유소", self: "Y", cashback: false, lat: 36.333148, lng: 127.4541223 },
-        { id: 134, name: "KH에너지㈜직영 태양주유소", district: "동구", dong: "용전동", address: "대전 동구 한밭대로 1258 (용전동)", phone: "042-624-5122", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3555404, lng: 127.4362091 },
-        { id: 135, name: "동아주유소", district: "동구", dong: "대동", address: "대전 동구 동대전로 118 (대동)", phone: "042-626-3333", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3326095, lng: 127.4451485 },
-        { id: 136, name: "내트럭(주)남대전사업소", district: "동구", dong: "", address: "대전 동구 대전로 15", phone: "042-271-5673", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 137, name: "sk대동주유소", district: "동구", dong: "용운동", address: "대전 동구 계족로140번길 73 (용운동)", phone: "042-283-5333", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3267636, lng: 127.4485824 },
-        { id: 138, name: "매봉주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 247 (가양동)", phone: "042-636-6086", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3445764, lng: 127.4434933 },
-        { id: 139, name: "토지주유소", district: "동구", dong: "소제동", address: "대전 동구 계족로 249", phone: "042-000-0000", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3350576, lng: 127.4389781 },
-        { id: 140, name: "가양셀프주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 365 (가양동)", phone: "042-632-3838", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3514532, lng: 127.4524629 },
-        { id: 141, name: "호원셀프주유소", district: "동구", dong: "용전동", address: "대전 동구 한밭대로 1315 (용전동)", phone: "042-672-2954", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3523992, lng: 127.44122 },
-        { id: 142, name: "고향주유소", district: "동구", dong: "상소동", address: "대전 동구 산내로 562", phone: "042-273-1998", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: 36.2288197, lng: 127.453728 },
-        { id: 143, name: "대전알찬주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 316 (가양동)", phone: "042-633-7975", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3474364, lng: 127.45043 },
-        { id: 144, name: "신가오주유소", district: "동구", dong: "가오동", address: "대전 동구 은어송로 38 (가오동)", phone: "042-272-7171", brand: "SK에너지", self: "Y", cashback: true, lat: 36.305079, lng: 127.4545839 },
-        { id: 145, name: "지에스칼텍스㈜현암주유소", district: "동구", dong: "삼성동", address: "대전 동구 동서대로 1494 (삼성동)", phone: "042-634-3151", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3393215, lng: 127.4199645 },
-        { id: 146, name: "(주)학하 삼성셀프주유소", district: "동구", dong: "삼성동", address: "대전 동구 대전로 908 (삼성동)", phone: "042-637-5566", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3397569, lng: 127.427744 },
-        { id: 147, name: "동광장주유소", district: "동구", dong: "소제동", address: "대전 동구 중앙로 280", phone: "000-0000-0000", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3332999, lng: 127.4391749 },
-        { id: 148, name: "신고개주유소", district: "동구", dong: "용운동", address: "대전 동구 새울로 38 (용운동)", phone: "042-285-6700", brand: "S-OIL", self: "Y", cashback: true, lat: 36.321821, lng: 127.4630438 },
-        { id: 149, name: "우정주유소", district: "동구", dong: "삼정동", address: "대전 동구 옥천로 418 (삼정동)", phone: "042-284-0235", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3312768, lng: 127.4761306 },
-        { id: 150, name: "대성셀프주유소", district: "동구", dong: "대성동", address: "대전광역시 동구 대전로 292 (대성동)", phone: "042-286-9505", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.2942465, lng: 127.4617961 },
-        { id: 151, name: "SK행복충전 유한가스충전소", district: "중구", dong: "", address: "대전 중구 유등천동로 780", phone: "042-222-2700", brand: "SK에너지", self: "N", cashback: true, lat: null, lng: null },
-        { id: 152, name: "필승주유소", district: "유성구", dong: "갑동", address: "대전 유성구 현충원로 201 (갑동)", phone: "042-826-7097", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 153, name: "선인에너지㈜강변주유소", district: "유성구", dong: "", address: "대전 유성구 엑스포로 293", phone: "042-862-5778", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 154, name: "SK자운셀프주유소", district: "유성구", dong: "", address: "대전 유성구 자운로157번길 122", phone: "042-867-5189", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 155, name: "장대주유소", district: "유성구", dong: "장대동", address: "대전 유성구 유성대로 768 (장대동)", phone: "042-825-6696", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 156, name: "㈜행복가득셀프", district: "유성구", dong: "화암동", address: "대전 유성구 대덕대로 887 (화암동)", phone: "-", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 157, name: "위성주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 489", phone: "042-825-5145", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 158, name: "첨단셀프주유소", district: "유성구", dong: "", address: "대전 유성구 가정로 27", phone: "-", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 159, name: "신성주유소", district: "유성구", dong: "", address: "대전 유성구 가정북로 163", phone: "042-861-0896", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 160, name: "㈜상익 유성주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 342", phone: "042-825-2452", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 161, name: "신연금스테이션 ㈜제이에이치대성", district: "유성구", dong: "", address: "대전 유성구 북유성대로 155", phone: "042-544-5185", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 162, name: "㈜제트에너지서대전주유소", district: "유성구", dong: "방동", address: "대전 유성구 계백로 212(방동)", phone: "042-825-5123", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 163, name: "㈜서대전 IC self 주유소", district: "유성구", dong: "방동", address: "대전 유성구 계백로 476 (방동)", phone: "042-544-8811", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 164, name: "방동제일주유소", district: "유성구", dong: "", address: "대전 유성구 계백로 324", phone: "042-825-0020", brand: "S-OIL", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 165, name: "KK㈜ 대전중앙주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 1647", phone: "042-862-2631", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 166, name: "유성IC메가허브점", district: "유성구", dong: "", address: "대전 유성구 현충원로 545", phone: "042-825-3351", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 167, name: "케이피에스 서대전IC 롯데마트 주유소", district: "유성구", dong: "원내동", address: "대전 유성구 유성대로 26-37 (원내동)", phone: "042-541-5148", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 168, name: "서남부주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 40", phone: "042-542-5189", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 169, name: "㈜오일마스터 도안대로주유소 유성지점", district: "유성구", dong: "교촌동", address: "대전 유성구 유성대로 142 (교촌동)", phone: "042-546-8811", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 170, name: "KH에너지㈜직영 하이웨이주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 531", phone: "042-822-5100", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 171, name: "화암동셀프주유소", district: "유성구", dong: "화암동", address: "대전 유성구 대덕대로 804 (화암동)", phone: "042-863-6643", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 172, name: "대양석유㈜ 엑스포주유소", district: "유성구", dong: "", address: "대전 유성구 대덕대로 542", phone: "042-863-6692", brand: "SK에너지", self: "N", cashback: false, lat: null, lng: null },
-        { id: 173, name: "삼미상사㈜ 진잠셀프주유소", district: "유성구", dong: "원내동", address: "대전 유성구 계백로 899 (원내동)", phone: "042-545-9408", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 174, name: "제이에너지㈜대덕밸리주유소", district: "유성구", dong: "", address: "대전 유성구 대덕대로 938", phone: "070-4288-5151", brand: "GS칼텍스", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 175, name: "(주)황제주유소", district: "유성구", dong: "화암동", address: "대전 유성구 대덕대로 934 (화암동)", phone: "042-861-5558", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 176, name: "(주)퍼스트오일", district: "유성구", dong: "갑동", address: "대전 유성구 현충원로 213 (갑동)", phone: "042-823-2146", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 177, name: "대성주유소", district: "유성구", dong: "", address: "대전 유성구 아리랑로 12", phone: "042-864-5155", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 178, name: "주식회사 방동주유소", district: "유성구", dong: "", address: "대전 유성구 계백로 139", phone: "042-825-5007", brand: "GS칼텍스", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 179, name: "한밭대로주유소", district: "유성구", dong: "장대동", address: "대전 유성구 한밭대로 305 (장대동)", phone: "042-823-5152", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 180, name: "(주)하나주유소", district: "유성구", dong: "하기동", address: "대전 유성구 유성대로 1127 (하기동)", phone: "042-867-5151", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: null, lng: null },
-        { id: 181, name: "지에스칼텍스㈜ 덕명주유소", district: "유성구", dong: "덕명동", address: "대전 유성구 현충원로 283 (덕명동)", phone: "042-825-4031", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 182, name: "지에스칼텍스(주)21세기주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 845", phone: "042-825-2800", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 183, name: "지에스칼텍스(주)정다운주유소", district: "유성구", dong: "노은동", address: "대전 유성구 북유성대로 51(노은동)", phone: "042-824-5151", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 184, name: "지에스칼텍스(주) GS사이언스주유소", district: "유성구", dong: "", address: "대전 유성구 대덕대로 539", phone: "042-861-7766", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 185, name: "지에스칼텍스㈜ 북유성IC주유소", district: "유성구", dong: "외삼동", address: "대전 유성구 북유성대로 408 (외삼동)", phone: "042-823-5150", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 186, name: "구도일태전주유소", district: "유성구", dong: "원촌동", address: "대전 유성구 엑스포로 259 (원촌동)", phone: "042-863-5104", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 187, name: "HD현대오일뱅크㈜직영 스마트셀프주유소", district: "유성구", dong: "원촌동", address: "대전 유성구 엑스포로 222 (원촌동)", phone: "042-862-5189", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 188, name: "HD현대오일뱅크㈜직영 세종관문셀프주유소", district: "유성구", dong: "하기동", address: "대전 유성구 북유성대로 288 (하기동)", phone: "042-826-5191", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 189, name: "햇빛주유소", district: "유성구", dong: "송정동", address: "대전 유성구 계백로 87 (송정동)", phone: "042-825-6266", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 190, name: "대광주유소", district: "유성구", dong: "봉산동", address: "대전 유성구 금남구즉로 1355 (봉산동)", phone: "042-935-6667", brand: "S-OIL", self: "N", cashback: false, lat: null, lng: null },
-        { id: 191, name: "북대전주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 1495", phone: "042-864-2207", brand: "S-OIL", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 192, name: "HD현대오일뱅크㈜직영 송강주유소", district: "유성구", dong: "송강동", address: "대전 유성구 대덕대로 1131 (송강동)", phone: "042-935-4064", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: null, lng: null },
-        { id: 193, name: "동일석유㈜테크노밸리주유소", district: "유성구", dong: "용산동", address: "대전 유성구 테크노중앙로 139 (용산동)", phone: "042-936-5189", brand: "SK에너지", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 194, name: "SK에너지㈜ 유공셀프주유소", district: "유성구", dong: "구암동", address: "대전 유성구 유성대로 614 (구암동)", phone: "042-825-5153", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 195, name: "HD현대오일뱅크㈜직영 노은주유소", district: "유성구", dong: "", address: "대전 유성구 노은동로 79", phone: "042-477-5182", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: null, lng: null },
-        { id: 196, name: "(주)학하 학하셀프주유소", district: "유성구", dong: "복용동", address: "대전 유성구 학하로 189 (복용동)", phone: "070-4187-4546", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 197, name: "SK에너지㈜ 예성주유소", district: "유성구", dong: "", address: "대전 유성구 도안동로 488", phone: "042-822-6556", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 198, name: "한밭대앞Self주유소", district: "유성구", dong: "덕명동", address: "대전 유성구 학하서로 111 (덕명동)", phone: "042-525-5151", brand: "S-OIL", self: "Y", cashback: true, lat: null, lng: null },
-        { id: 199, name: "관저주유소", district: "유성구", dong: "원내동", address: "대전 유성구 계백로 975 (원내동)", phone: "042-541-4202", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 200, name: "우진주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로654번길 1", phone: "042-823-9606", brand: "S-OIL", self: "N", cashback: true, lat: null, lng: null },
-        { id: 201, name: "(주)구암상사주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로654번길 32", phone: "042-825-6162", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 202, name: "계룡주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 177", phone: "042-822-5111", brand: "S-OIL", self: "N", cashback: true, lat: null, lng: null },
-        { id: 203, name: "(주)황제충전소", district: "유성구", dong: "덕진동", address: "대전 유성구 대덕대로1021 (덕진동)", phone: "042-862-6464", brand: "SK에너지", self: "N", cashback: true, lat: null, lng: null },
-        { id: 204, name: "지에스칼텍스(주)충대앞주유소", district: "유성구", dong: "궁동", address: "대전광역시 유성구 대학로 85 (궁동)", phone: "-", brand: "GS칼텍스", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 205, name: "구도일태전주유소오앤씨에너지 유한회사", district: "유성구", dong: "", address: "대전광역시 유성구 엑스포로 265", phone: "-", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 206, name: "HD현대오일뱅크 위성셀프주유소", district: "유성구", dong: "장대동", address: "대전광역시 유성구 현충원로 492 (장대동)", phone: "042-825-5145", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 207, name: "SK엔크린 유성하나로셀프주유소", district: "유성구", dong: "", address: "대전광역시 유성구 한밭대로 295", phone: "042-825-5149", brand: "SK에너지", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 208, name: "(주)에스엘 성림주유소", district: "유성구", dong: "", address: "대전광역시 유성구 유성대로752번길 2", phone: "042-822-7322", brand: "S-OIL", self: "Y", cashback: false, lat: null, lng: null },
-        { id: 209, name: "진터벌주유소", district: "유성구", dong: "", address: "대전광역시 유성구 유성대로654번길 168", phone: "-", brand: "S-OIL", self: "-", cashback: false, lat: null, lng: null },
-        { id: 210, name: "대화공단LPG충전소", district: "대덕구", dong: "", address: "대전 대덕구 아리랑로63", phone: "042-638-0671", brand: "SK에너지", self: "N", cashback: true, lat: null, lng: null },
-        { id: 211, name: "동학사LPG충전소", district: "유성구", dong: "", address: "대전 유성구 현충원로137", phone: "042-822-5172", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 212, name: "방동LPG충전소", district: "유성구", dong: "방동", address: "대전 유성구 계백로473 (방동)", phone: "042-545-7117", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 213, name: "배재주유소", district: "서구", dong: "", address: "대전 서구 도솔로 57", phone: "042-532-5700", brand: "HD현대오일뱅크", self: "-", cashback: true, lat: null, lng: null },
-        { id: 214, name: "세일가스-LPG충전소", district: "중구", dong: "옥계동", address: "대전 중구 대종로117 (옥계동)", phone: "042-271-2271", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 215, name: "송정가스충전소", district: "유성구", dong: "", address: "대전 유성구 계백로34", phone: "042-586-2220", brand: "SK에너지", self: "N", cashback: true, lat: null, lng: null },
-        { id: 216, name: "싱글벙글LPG충전소", district: "서구", dong: "정림동", address: "대전 서구 계백로1249번길27 (정림동)", phone: "042-584-2006", brand: "S-OIL", self: "N", cashback: true, lat: null, lng: null },
-        { id: 217, name: "유성학하충전소", district: "유성구", dong: "학하동", address: "대전 유성구 진잠옛로135번길76, 1층 (학하동)", phone: "042-825-8998", brand: "S-OIL", self: "N", cashback: true, lat: null, lng: null },
-        { id: 218, name: "정림가스충전소", district: "서구", dong: "정림동", address: "대전 서구 계백로1275 (정림동)", phone: "042-523-8235", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null },
-        { id: 219, name: "정민가스충전소", district: "대덕구", dong: "", address: "대전 대덕구 대전로1020번길 47", phone: "042-623-0487", brand: "SK에너지", self: "N", cashback: true, lat: null, lng: null },
-        { id: 220, name: "진잠유통단지LPG충전소", district: "유성구", dong: "", address: "대전 유성구 교촌동331-1,8번지", phone: "042-544-1777", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: null, lng: null },
-        { id: 221, name: "상서충전소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로484 (상서동)", phone: "042-932-6460", brand: "GS칼텍스", self: "N", cashback: true, lat: null, lng: null }
+        { id: 31, name: "대양석유㈜ 중리주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1186", phone: "042-622-9939", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3586435, lng: 127.4304604 },
+        { id: 32, name: "㈜태석", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1180", phone: "042-673-1230", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3586166, lng: 127.4295812 },
+        { id: 33, name: "중도석유(주)오정동주유소", district: "대덕구", dong: "오정동", address: "대전 대덕구 대전로 1144 (오정동)", phone: "042-672-4843", brand: "GS칼텍스", self: "N", cashback: false, lat: 36.3566093, lng: 127.4154154 },
+        { id: 34, name: "쌍용주유소 선인에너지", district: "대덕구", dong: "연축동", address: "대전 대덕구 신탄진로 83 (연축동)", phone: "042-628-0088", brand: "알뜰주유소", self: "Y", cashback: false, lat: 36.3881684, lng: 127.4216062 },
+        { id: 35, name: "우리원셀프주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 383", phone: "0507-1430-5185", brand: "S-OIL", self: "Y", cashback: true, lat: 36.4138688, lng: 127.4236598 },
+        { id: 36, name: "으뜸회덕주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 222", phone: "042-628-1496", brand: "SK에너지", self: "Y", cashback: false, lat: 36.4003216, lng: 127.4233722 },
+        { id: 37, name: "와동셀프주유소 ㈜에스에이치에너지", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 386", phone: "042-710-0609", brand: "SK에너지", self: "Y", cashback: true, lat: 36.4143373, lng: 127.4243261 },
+        { id: 38, name: "럭키셀프주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1007", phone: "042-000-0000", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3585386, lng: 127.4102824 },
+        { id: 39, name: "소태산주유소", district: "대덕구", dong: "신대동", address: "대전 대덕구 신탄진로 163 (신대동)", phone: "042-636-4438", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3953321, lng: 127.4217339 },
+        { id: 40, name: "OK주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 대전로 1312 (읍내동)", phone: "042-633-8757", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3708262, lng: 127.4207768 },
+        { id: 41, name: "은빛주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 70 (읍내동)", phone: "042-631-5104", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3764022, lng: 127.4123588 },
+        { id: 42, name: "㈜오일마스터 킹콩주유소 대전지점", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 107 (읍내동)", phone: "042-627-5551", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3752532, lng: 127.4168472 },
+        { id: 43, name: "신탄진IC주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 665", phone: "042-932-7888", brand: "SK에너지", self: "Y", cashback: false, lat: 36.4374703, lng: 127.4257874 },
+        { id: 44, name: "상서현대셀프", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 519 (상서동)", phone: "042-931-8097", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: 36.4253574, lng: 127.419581 },
+        { id: 45, name: "㈜연정 농수산주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1014", phone: "042-635-1587", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3577765, lng: 127.4112753 },
+        { id: 46, name: "당산주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 135 (읍내동)", phone: "042-622-2133", brand: "SK에너지", self: "N", cashback: true, lat: 36.374097, lng: 127.4196087 },
+        { id: 47, name: "원촌주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 아리랑로 55 (읍내동)", phone: "042-633-6330", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3774871, lng: 127.4117399 },
+        { id: 48, name: "금강주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 536", phone: "042-931-6633", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.4266687, lng: 127.4209429 },
+        { id: 49, name: "신탄진알뜰주유소", district: "대덕구", dong: "", address: "대전 대덕구 대덕대로1527번길 374", phone: "042-932-3000", brand: "알뜰주유소", self: "Y", cashback: false, lat: 36.453429, lng: 127.4283574 },
+        { id: 50, name: "대덕주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 470", phone: "042-936-9934", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.4213649, lng: 127.4199497 },
+        { id: 51, name: "제일셀프주유소", district: "대덕구", dong: "비래동", address: "대전 대덕구 동서대로 1750 (비래동)", phone: "042-638-4255", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3517351, lng: 127.4430495 },
+        { id: 52, name: "스마일주유소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 622 (상서동)", phone: "042-934-5188", brand: "S-OIL", self: "Y", cashback: false, lat: 36.4337153, lng: 127.4247467 },
+        { id: 53, name: "대성주유소", district: "대덕구", dong: "", address: "대전 대덕구 덕암로 219", phone: "042-628-5180", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.4400441, lng: 127.4233908 },
+        { id: 54, name: "맘모스주유소", district: "대덕구", dong: "", address: "대전 대덕구 동서대로 1756", phone: "042-636-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3523748, lng: 127.4432993 },
+        { id: 55, name: "대림석유(주) 신탄진주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로681번길 22", phone: "042-671-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.439339, lng: 127.425179 },
+        { id: 56, name: "용은주유소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 559 (상서동)", phone: "042-936-0068", brand: "S-OIL", self: "Y", cashback: false, lat: 36.4289326, lng: 127.4208433 },
+        { id: 57, name: "성찬셀프주유소", district: "대덕구", dong: "신탄진동", address: "대전 대덕구 신탄진로 764 (신탄진동)", phone: "042-346-1208", brand: "S-OIL", self: "Y", cashback: false, lat: 36.445594, lng: 127.4298881 },
+        { id: 58, name: "일등주유소", district: "대덕구", dong: "평촌동", address: "대전 대덕구 신탄진로 636 (평촌동)", phone: "042-933-1346", brand: "자가상표", self: "N", cashback: false, lat: 36.4349932, lng: 127.4253897 },
+        { id: 59, name: "영풍에너지 주식회사", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 584 (상서동)", phone: "042-934-5151", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.4305358, lng: 127.4225951 },
+        { id: 60, name: "신탄진농협주유소", district: "대덕구", dong: "", address: "대전 대덕구 덕암로 164", phone: "042-932-5736", brand: "NH-OIL", self: "Y", cashback: false, lat: 36.4352684, lng: 127.4224665 },
+        { id: 61, name: "(주)동서로 대전IC주유소", district: "대덕구", dong: "", address: "대전 대덕구 동서대로 1787", phone: "042-627-5145", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3553602, lng: 127.4439197 },
+        { id: 62, name: "대양석유㈜ 대덕주유소", district: "대덕구", dong: "", address: "대전 대덕구 동서대로 1811", phone: "042-633-7775", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3572678, lng: 127.4450443 },
+        { id: 63, name: "삼미상사㈜ 대원셀프주유소", district: "대덕구", dong: "비래동", address: "대전 대덕구 동서대로 1772 (비래동)", phone: "042-673-7412", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3537004, lng: 127.4442611 },
+        { id: 64, name: "CJ대한통운㈜ 대전지사주유소", district: "대덕구", dong: "읍내동", address: "대전 대덕구 신탄진로 1 (읍내동)", phone: "042-625-5189", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3834631, lng: 127.4243787 },
+        { id: 65, name: "대전북부새마을금고주유소", district: "대덕구", dong: "", address: "대전 대덕구 신탄진로 792", phone: "042-933-5182", brand: "SK에너지", self: "Y", cashback: false, lat: 36.4481348, lng: 127.4297642 },
+        { id: 66, name: "㈜학하 목상셀프주유소", district: "대덕구", dong: "목상동", address: "대전 대덕구 대덕대로 1500 (목상동)", phone: "070-7722-5153", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.4493456, lng: 127.4149478 },
+        { id: 67, name: "세종Self주유소", district: "대덕구", dong: "목상동", address: "대전 대덕구 대덕대로 1494 (목상동)", phone: "042-934-5189", brand: "SK에너지", self: "Y", cashback: false, lat: 36.4492686, lng: 127.4141797 },
+        { id: 68, name: "YM21유통㈜ 신탄진(서울)주유소/충전소", district: "대덕구", dong: "", address: "대전 대덕구 산업단지로 27", phone: "042-934-2445", brand: "알뜰(ex)", self: "Y", cashback: false, lat: 36.4280804, lng: 127.4185561 },
+        { id: 69, name: "오정동셀프주유소", district: "대덕구", dong: "오정동", address: "대전 대덕구 오정로 123 (오정동)", phone: "042-621-2997", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3559236, lng: 127.405905 },
+        { id: 70, name: "갑천주유소", district: "대덕구", dong: "신대동", address: "대전 대덕구 아리랑로55번길 189 (신대동)", phone: "042-635-4062", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3929501, lng: 127.4134788 },
+        { id: 71, name: "라자로주유소", district: "대덕구", dong: "", address: "대전 대덕구 대전로 1390", phone: "042-632-5151", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3774444, lng: 127.4217742 },
+        { id: 72, name: "신일주유소", district: "대덕구", dong: "", address: "대전 대덕구 산업단지로 112", phone: "042-936-5145", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.4309505, lng: 127.4096274 },
+        { id: 73, name: "대전이데아주유소", district: "대덕구", dong: "중리동", address: "대전 대덕구 한밭대로 1145 (중리동)", phone: "042-633-7186", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3592709, lng: 127.4256527 },
+        { id: 74, name: "대도주유소", district: "대덕구", dong: "신탄진동", address: "대전 대덕구 신탄진로756번길 2 (신탄진동)", phone: "042-931-7600", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: 36.4445591, lng: 127.4298178 },
+        { id: 75, name: "현대오일뱅크㈜직영 4공단주유소", district: "대덕구", dong: "", address: "대전 대덕구 대덕대로 1412", phone: "042-935-6051", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.4457255, lng: 127.4066482 },
+        { id: 76, name: "현대오일뱅크㈜직영 대덕산단주유소", district: "대덕구", dong: "", address: "대전 대덕구 문평동로 2", phone: "042-933-0115", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.4453898, lng: 127.4043549 },
+        { id: 77, name: "씨앤에스유통(주)회덕아이씨주유소", district: "대덕구", dong: "회덕동", address: "대전광역시 대덕구 갑천도시고속도로 1084 (회덕동)", phone: "042-672-5151", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3909913, lng: 127.4126496 },
+        { id: 78, name: "공단주유소", district: "대덕구", dong: "대화동", address: "대전 대덕구 대전로 1285 (대화동)", phone: "042-634-0225", brand: "GS칼텍스", self: "N", cashback: false, lat: 36.3688304, lng: 127.4199174 },
+        { id: 79, name: "비전운수(주)산업단지주유소", district: "대덕구", dong: "", address: "대전 대덕구 산업단지로 107", phone: "042-935-5111", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.429905, lng: 127.4093799 },
+        { id: 80, name: "개나리주유소오일뱅크", district: "대덕구", dong: "오정동", address: "대전 대덕구 오정로 53 (오정동)", phone: "042-631-4466", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: 36.3514342, lng: 127.4111603 },
+        { id: 81, name: "(주)차세대주유소", district: "대덕구", dong: "", address: "대전광역시 대덕구 아리랑로 73", phone: "042-626-5051", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.3766003, lng: 127.4132287 },
+        { id: 82, name: "한솔주유소", district: "대덕구", dong: "", address: "대전 대덕구 한밭대로 1036", phone: "042-622-6680", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.3579233, lng: 127.4137581 },
+        { id: 83, name: "순우리주유소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로 533 (상서동)", phone: "042-931-5182", brand: "자가상표", self: "Y", cashback: true, lat: 36.4268543, lng: 127.4197468 },
+        { id: 84, name: "GS칼텍스 직영 톨게이트", district: "대덕구", dong: "비래동", address: "대전광역시 대덕구 동서대로 1762 (비래동)", phone: "042-622-1544", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3527515, lng: 127.4435337 },
+        { id: 85, name: "대양석유㈜ 내동주유소", district: "서구", dong: "", address: "대전 서구 동서대로 1081", phone: "042-533-2838", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3290382, lng: 127.3810168 },
+        { id: 86, name: "(유)용명에너지 신대전셀프주유소", district: "서구", dong: "", address: "대전 서구 도산로 213", phone: "042-533-6045", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.327251, lng: 127.3799982 },
+        { id: 87, name: "우리하나셀프주유소", district: "서구", dong: "", address: "대전 서구 동서대로 1120", phone: "042-522-5179", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3280124, lng: 127.3847757 },
+        { id: 88, name: "남선석유㈜ 계백셀프주유소", district: "서구", dong: "", address: "대전 서구 계백로 1327", phone: "042-523-5184", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3097211, lng: 127.3695938 },
+        { id: 89, name: "중도석유(주) 도마동주유소", district: "서구", dong: "도마동", address: "대전 서구 계백로 1371 (도마동)", phone: "042-523-0589", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3107915, lng: 127.3743417 },
+        { id: 90, name: "도마진실주유소", district: "서구", dong: "", address: "대전 서구 도산로 123", phone: "042-522-3764", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3195717, lng: 127.3773842 },
+        { id: 91, name: "굿모닝주유소", district: "서구", dong: "", address: "대전 서구 계백로 1376", phone: "042-583-5182", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3106156, lng: 127.3751906 },
+        { id: 92, name: "(주)혜천셀프주유소", district: "서구", dong: "", address: "대전 서구 혜천로 28", phone: "042-587-5189", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3065975, lng: 127.3697486 },
+        { id: 93, name: "대림주유소", district: "서구", dong: "정림동", address: "대전 서구 계백로 1290 (정림동)", phone: "042-586-5102", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3078358, lng: 127.3662092 },
+        { id: 94, name: "프렌즈스테이션㈜제이에이치에스", district: "서구", dong: "", address: "대전 서구 계백로 838", phone: "042-544-5185", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.2943474, lng: 127.3215215 },
+        { id: 95, name: "주홍셀프", district: "서구", dong: "탄방동", address: "대전 서구 도산로 475 (탄방동)", phone: "042-485-8363", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3441273, lng: 127.4003415 },
+        { id: 96, name: "코끼리셀프주유소", district: "서구", dong: "용문동", address: "대전 서구 도산로 446 (용문동)", phone: "042-522-3240", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3419061, lng: 127.3983842 },
+        { id: 97, name: "탄방주유소", district: "서구", dong: "", address: "대전 서구 유등로 659", phone: "042-487-9005", brand: "알뜰주유소", self: "Y", cashback: true, lat: 36.3457141, lng: 127.4014276 },
+        { id: 98, name: "(주)에너비즈 둔산주유소", district: "서구", dong: "탄방동", address: "대전 서구 유등로 667 (탄방동)", phone: "042-487-7090", brand: "S-OIL", self: "Y", cashback: false, lat: 36.346463, lng: 127.4013724 },
+        { id: 99, name: "(주)에너비즈 명품주유소", district: "서구", dong: "도마동", address: "대전 서구 배재로 218 (도마동)", phone: "042-521-0051", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3278404, lng: 127.3707158 },
+        { id: 100, name: "중도석유(주)월드컵주유소", district: "서구", dong: "탄방동", address: "대전 서구 문정로 12 (탄방동)", phone: "042-483-5760", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.345272, lng: 127.3814757 },
+        { id: 101, name: "중도석유(주) 대덕주유소", district: "서구", dong: "월평동", address: "대전 서구 월평북로 84 (월평동)", phone: "042-482-3835", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3619786, lng: 127.3776659 },
+        { id: 102, name: "극동유화(주) 한밭주유소", district: "서구", dong: "둔산2동", address: "대전 서구 문정로 3 (둔산2동)", phone: "042-471-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3452357, lng: 127.3802481 },
+        { id: 103, name: "지에스칼텍스㈜구봉산셀프주유소", district: "서구", dong: "", address: "대전 서구 구봉로 208", phone: "042-256-8333", brand: "GS칼텍스", self: "Y", cashback: true, lat: 36.2975553, lng: 127.3455501 },
+        { id: 104, name: "㈜가수원주유소", district: "서구", dong: "가수원동", address: "대전 서구 계백로 1176 (가수원동)", phone: "042-543-5189", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3050443, lng: 127.3543744 },
+        { id: 105, name: "갈마주유소", district: "서구", dong: "", address: "대전 서구 신갈마로 130", phone: "042-526-0890", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.345228, lng: 127.3688066 },
+        { id: 106, name: "현대셀프주유소", district: "서구", dong: "변동", address: "대전 서구 변동로 114 (변동)", phone: "042-535-0885", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3232761, lng: 127.3851468 },
+        { id: 107, name: "그린주유소", district: "서구", dong: "", address: "대전 서구 동서대로 953", phone: "042-534-5301", brand: "알뜰주유소", self: "Y", cashback: false, lat: 36.3346752, lng: 127.3686598 },
+        { id: 108, name: "KH에너지㈜직영 둔산주유소", district: "서구", dong: "", address: "대전 서구 둔산로 139", phone: "042-484-5531", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3515085, lng: 127.3894948 },
+        { id: 109, name: "중동주유소", district: "서구", dong: "갈마동", address: "대전 서구 계룡로 344 (갈마동)", phone: "042-533-7088", brand: "알뜰주유소", self: "Y", cashback: true, lat: 36.3536689, lng: 127.3671418 },
+        { id: 110, name: "디에스주유소", district: "서구", dong: "도마동", address: "대전 서구 배재로 210 (도마동)", phone: "0507-1398-3841", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3272275, lng: 127.3706851 },
+        { id: 111, name: "㈜뉴월드에너지", district: "서구", dong: "", address: "대전 서구 배재로 205", phone: "042-526-3840", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.3268237, lng: 127.3701548 },
+        { id: 112, name: "씨앤에스유통㈜ 호수공원주유소", district: "서구", dong: "정림동", address: "대전 서구 계백로 1259 (정림동)", phone: "042-534-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3075418, lng: 127.3626626 },
+        { id: 113, name: "기성농협주유소", district: "서구", dong: "", address: "대전 서구 세점길 7", phone: "042-581-4615", brand: "NH-OIL", self: "Y", cashback: false, lat: 36.254574, lng: 127.3399086 },
+        { id: 114, name: "씨앤에스유통㈜도안신도시주유소", district: "서구", dong: "", address: "대전 서구 도안동로 277", phone: "042-545-2227", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3295761, lng: 127.3472631 },
+        { id: 115, name: "괴정주유소", district: "서구", dong: "", address: "대전 서구 괴정로 113", phone: "042-525-1551", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.3376876, lng: 127.3855954 },
+        { id: 116, name: "(주)동건에너지 만년교셀프주유소", district: "서구", dong: "", address: "대전 서구 계룡로 202", phone: "042-525-6643", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3505055, lng: 127.3526119 },
+        { id: 117, name: "삼정주유소", district: "서구", dong: "만년동", address: "대전 서구 대덕대로 384 (만년동)", phone: "042-488-3326", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3669803, lng: 127.3799891 },
+        { id: 118, name: "백산주유소", district: "서구", dong: "변동", address: "대전 서구 동서대로 1068 (변동)", phone: "042-534-4678", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3292396, lng: 127.3793276 },
+        { id: 119, name: "(주)하늘셀프주유소", district: "동구", dong: "천동", address: "대전 동구 대전로 549", phone: "042-283-5151", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3115735, lng: 127.4446702 },
+        { id: 120, name: "㈜더유에너지 동원주유소", district: "동구", dong: "삼정동", address: "대전 동구 옥천로 355-3", phone: "042-274-5466", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3262045, lng: 127.4727328 },
+        { id: 121, name: "㈜더유에너지 태암셀프주유소", district: "동구", dong: "", address: "대전 동구 대전로 264", phone: "042-282-5466", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.2918071, lng: 127.4629511 },
+        { id: 122, name: "대양석유㈜ 덕성셀프주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 287", phone: "042-286-5151", brand: "SK에너지", self: "Y", cashback: true, lat: 36.2936782, lng: 127.4613792 },
+        { id: 123, name: "아원주유소", district: "동구", dong: "성남동", address: "대전 동구 계족로 326", phone: "042-625-2928", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3414395, lng: 127.4358341 },
+        { id: 124, name: "용전셀프주유소", district: "동구", dong: "홍도동", address: "대전 동구 동서대로 1627", phone: "042-637-8838", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.347006, lng: 127.4307237 },
+        { id: 125, name: "동일석유㈜대전주유소", district: "동구", dong: "용전동", address: "대전 동구 계족로 436 (용전동)", phone: "042-673-8880", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3505838, lng: 127.4326819 },
+        { id: 126, name: "판암하늘셀프주유소", district: "동구", dong: "", address: "대전 동구 옥천로 77", phone: "042-286-5189", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3194044, lng: 127.4499731 },
+        { id: 127, name: "산내제일주유소", district: "동구", dong: "대성동", address: "대전 동구 대전로 269 (대성동)", phone: "042-282-5189", brand: "S-OIL", self: "Y", cashback: false, lat: 36.2922793, lng: 127.4621296 },
+        { id: 128, name: "주식회사대동현대셀프", district: "동구", dong: "대동", address: "대전 동구 계족로 126", phone: "042-283-5189", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3255473, lng: 127.4456099 },
+        { id: 129, name: "재하주유소", district: "동구", dong: "성남동", address: "대전 동구 동서대로 1664 (성남동)", phone: "042-626-6626", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3480701, lng: 127.4348988 },
+        { id: 130, name: "㈜한양페트로 에이스주유소", district: "동구", dong: "가양동", address: "대전 동구 동대전로 253", phone: "042-632-5289", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3436722, lng: 127.446667 },
+        { id: 131, name: "(주)이선 광장셀프주유소", district: "동구", dong: "성남동", address: "대전 동구 계족로 305", phone: "042-623-2368", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3394767, lng: 127.4364628 },
+        { id: 132, name: "유원주유소", district: "동구", dong: "용전동", address: "대전 동구 계족로 513", phone: "042-672-3613", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3574429, lng: 127.4324589 },
+        { id: 133, name: "㈜용운주유소", district: "동구", dong: "용운동", address: "대전 동구 백룡로 77 (용운동)", phone: "042-471-6699", brand: "알뜰주유소", self: "Y", cashback: false, lat: 36.3330984, lng: 127.4541078 },
+        { id: 134, name: "KH에너지㈜직영 태양주유소", district: "동구", dong: "용전동", address: "대전 동구 한밭대로 1258 (용전동)", phone: "042-624-5122", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3554903, lng: 127.4361944 },
+        { id: 135, name: "동아주유소", district: "동구", dong: "대동", address: "대전 동구 동대전로 118 (대동)", phone: "042-626-3333", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.3325597, lng: 127.4451342 },
+        { id: 136, name: "내트럭(주)남대전사업소", district: "동구", dong: "", address: "대전 동구 대전로 15", phone: "042-271-5673", brand: "SK에너지", self: "Y", cashback: false, lat: 36.2723829, lng: 127.4710842 },
+        { id: 137, name: "sk대동주유소", district: "동구", dong: "용운동", address: "대전 동구 계족로140번길 73 (용운동)", phone: "042-283-5333", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3267139, lng: 127.4485682 },
+        { id: 138, name: "매봉주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 247 (가양동)", phone: "042-636-6086", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3445265, lng: 127.4434787 },
+        { id: 139, name: "토지주유소", district: "동구", dong: "소제동", address: "대전 동구 계족로 249", phone: "042-000-0000", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3350078, lng: 127.4389638 },
+        { id: 140, name: "가양셀프주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 365 (가양동)", phone: "042-632-3838", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3514034, lng: 127.4524481 },
+        { id: 141, name: "호원셀프주유소", district: "동구", dong: "용전동", address: "대전 동구 한밭대로 1315 (용전동)", phone: "042-672-2954", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3523493, lng: 127.4412053 },
+        { id: 142, name: "고향주유소", district: "동구", dong: "상소동", address: "대전 동구 산내로 562", phone: "042-273-1998", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: 36.2287707, lng: 127.4537154 },
+        { id: 143, name: "대전알찬주유소", district: "동구", dong: "가양동", address: "대전 동구 우암로 316 (가양동)", phone: "042-633-7975", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3473865, lng: 127.4504153 },
+        { id: 144, name: "신가오주유소", district: "동구", dong: "가오동", address: "대전 동구 은어송로 38 (가오동)", phone: "042-272-7171", brand: "SK에너지", self: "Y", cashback: true, lat: 36.3050295, lng: 127.4545699 },
+        { id: 145, name: "지에스칼텍스㈜현암주유소", district: "동구", dong: "삼성동", address: "대전 동구 동서대로 1494 (삼성동)", phone: "042-634-3151", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3392713, lng: 127.4199501 },
+        { id: 146, name: "(주)학하 삼성셀프주유소", district: "동구", dong: "삼성동", address: "대전 동구 대전로 908 (삼성동)", phone: "042-637-5566", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3396683, lng: 127.427733 },
+        { id: 147, name: "동광장주유소", district: "동구", dong: "소제동", address: "대전 동구 중앙로 280", phone: "000-0000-0000", brand: "S-OIL", self: "Y", cashback: true, lat: 36.333262, lng: 127.4394758 },
+        { id: 148, name: "신고개주유소", district: "동구", dong: "용운동", address: "대전 동구 새울로 38 (용운동)", phone: "042-285-6700", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3217715, lng: 127.4630295 },
+        { id: 149, name: "우정주유소", district: "동구", dong: "삼정동", address: "대전 동구 옥천로 418 (삼정동)", phone: "042-284-0235", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3312274, lng: 127.476116 },
+        { id: 150, name: "대성셀프주유소", district: "동구", dong: "대성동", address: "대전광역시 동구 대전로 292 (대성동)", phone: "042-286-9505", brand: "HD현대오일뱅크", self: "Y", cashback: true, lat: 36.2941972, lng: 127.4617823 },
+        { id: 151, name: "SK행복충전 유한가스충전소", district: "중구", dong: "", address: "대전 중구 유등천동로 780", phone: "042-222-2700", brand: "SK에너지", self: "N", cashback: true, lat: 36.3465689, lng: 127.4046141 },
+        { id: 152, name: "필승주유소", district: "유성구", dong: "갑동", address: "대전 유성구 현충원로 201 (갑동)", phone: "042-826-7097", brand: "SK에너지", self: "Y", cashback: true, lat: 36.360438, lng: 127.2933214 },
+        { id: 153, name: "선인에너지㈜강변주유소", district: "유성구", dong: "", address: "대전 유성구 엑스포로 293", phone: "042-862-5778", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.382312, lng: 127.4057608 },
+        { id: 154, name: "SK자운셀프주유소", district: "유성구", dong: "", address: "대전 유성구 자운로157번길 122", phone: "042-867-5189", brand: "SK에너지", self: "Y", cashback: false, lat: 36.4073925, lng: 127.3391959 },
+        { id: 155, name: "장대주유소", district: "유성구", dong: "장대동", address: "대전 유성구 유성대로 768 (장대동)", phone: "042-825-6696", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3604935, lng: 127.3361208 },
+        { id: 156, name: "㈜행복가득셀프", district: "유성구", dong: "화암동", address: "대전 유성구 대덕대로 887 (화암동)", phone: "-", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.4088932, lng: 127.3754264 },
+        { id: 157, name: "위성주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 489", phone: "042-825-5145", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3597676, lng: 127.3251063 },
+        { id: 158, name: "첨단셀프주유소", district: "유성구", dong: "", address: "대전 유성구 가정로 27", phone: "-", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.384418, lng: 127.3463348 },
+        { id: 159, name: "신성주유소", district: "유성구", dong: "", address: "대전 유성구 가정북로 163", phone: "042-861-0896", brand: "S-OIL", self: "Y", cashback: false, lat: 36.396096, lng: 127.3553442 },
+        { id: 160, name: "㈜상익 유성주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 342", phone: "042-825-2452", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3589724, lng: 127.3087172 },
+        { id: 161, name: "신연금스테이션 ㈜제이에이치대성", district: "유성구", dong: "", address: "대전 유성구 북유성대로 155", phone: "042-544-5185", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3801765, lng: 127.3227604 },
+        { id: 162, name: "㈜제트에너지서대전주유소", district: "유성구", dong: "방동", address: "대전 유성구 계백로 212(방동)", phone: "042-825-5123", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.2702083, lng: 127.2734465 },
+        { id: 163, name: "㈜서대전 IC self 주유소", district: "유성구", dong: "방동", address: "대전 유성구 계백로 476 (방동)", phone: "042-544-8811", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.2760732, lng: 127.2936417 },
+        { id: 164, name: "방동제일주유소", district: "유성구", dong: "", address: "대전 유성구 계백로 324", phone: "042-825-0020", brand: "S-OIL", self: "Y", cashback: true, lat: 36.2664299, lng: 127.2848368 },
+        { id: 165, name: "KK㈜ 대전중앙주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 1647", phone: "042-862-2631", brand: "SK에너지", self: "Y", cashback: true, lat: 36.4006829, lng: 127.3920106 },
+        { id: 166, name: "유성IC메가허브점", district: "유성구", dong: "", address: "대전 유성구 현충원로 545", phone: "042-825-3351", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3582797, lng: 127.3311662 },
+        { id: 167, name: "케이피에스 서대전IC 롯데마트 주유소", district: "유성구", dong: "원내동", address: "대전 유성구 유성대로 26-37 (원내동)", phone: "042-541-5148", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3004584, lng: 127.3247634 },
+        { id: 168, name: "서남부주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 40", phone: "042-542-5189", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3021532, lng: 127.3220151 },
+        { id: 169, name: "㈜오일마스터 도안대로주유소 유성지점", district: "유성구", dong: "교촌동", address: "대전 유성구 유성대로 142 (교촌동)", phone: "042-546-8811", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3108444, lng: 127.3180966 },
+        { id: 170, name: "KH에너지㈜직영 하이웨이주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 531", phone: "042-822-5100", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3588551, lng: 127.3297063 },
+        { id: 171, name: "화암동셀프주유소", district: "유성구", dong: "화암동", address: "대전 유성구 대덕대로 804 (화암동)", phone: "042-863-6643", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.4016664, lng: 127.3750401 },
+        { id: 172, name: "대양석유㈜ 엑스포주유소", district: "유성구", dong: "", address: "대전 유성구 대덕대로 542", phone: "042-863-6692", brand: "SK에너지", self: "N", cashback: false, lat: 36.3813607, lng: 127.3788525 },
+        { id: 173, name: "삼미상사㈜ 진잠셀프주유소", district: "유성구", dong: "원내동", address: "대전 유성구 계백로 899 (원내동)", phone: "042-545-9408", brand: "SK에너지", self: "Y", cashback: false, lat: 36.2994201, lng: 127.3239268 },
+        { id: 174, name: "제이에너지㈜대덕밸리주유소", district: "유성구", dong: "", address: "대전 유성구 대덕대로 938", phone: "070-4288-5151", brand: "GS칼텍스", self: "Y", cashback: true, lat: 36.4124046, lng: 127.3785525 },
+        { id: 175, name: "(주)황제주유소", district: "유성구", dong: "화암동", address: "대전 유성구 대덕대로 934 (화암동)", phone: "042-861-5558", brand: "SK에너지", self: "Y", cashback: false, lat: 36.4121344, lng: 127.3786057 },
+        { id: 176, name: "(주)퍼스트오일", district: "유성구", dong: "갑동", address: "대전 유성구 현충원로 213 (갑동)", phone: "042-823-2146", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3603381, lng: 127.2945492 },
+        { id: 177, name: "대성주유소", district: "유성구", dong: "", address: "대전 유성구 아리랑로 12", phone: "042-864-5155", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3793667, lng: 127.4077424 },
+        { id: 178, name: "주식회사 방동주유소", district: "유성구", dong: "", address: "대전 유성구 계백로 139", phone: "042-825-5007", brand: "GS칼텍스", self: "Y", cashback: true, lat: 36.2745139, lng: 127.2673923 },
+        { id: 179, name: "한밭대로주유소", district: "유성구", dong: "장대동", address: "대전 유성구 한밭대로 305 (장대동)", phone: "042-823-5152", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.365781, lng: 127.3347015 },
+        { id: 180, name: "(주)하나주유소", district: "유성구", dong: "하기동", address: "대전 유성구 유성대로 1127 (하기동)", phone: "042-867-5151", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.3912887, lng: 127.3465116 },
+        { id: 181, name: "지에스칼텍스㈜ 덕명주유소", district: "유성구", dong: "덕명동", address: "대전 유성구 현충원로 283 (덕명동)", phone: "042-825-4031", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.360672, lng: 127.302298 },
+        { id: 182, name: "지에스칼텍스(주)21세기주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 845", phone: "042-825-2800", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3672567, lng: 127.3388253 },
+        { id: 183, name: "지에스칼텍스(주)정다운주유소", district: "유성구", dong: "노은동", address: "대전 유성구 북유성대로 51(노은동)", phone: "042-824-5151", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3713743, lng: 127.3264326 },
+        { id: 184, name: "지에스칼텍스(주) GS사이언스주유소", district: "유성구", dong: "", address: "대전 유성구 대덕대로 539", phone: "042-861-7766", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3809041, lng: 127.3781493 },
+        { id: 185, name: "지에스칼텍스㈜ 북유성IC주유소", district: "유성구", dong: "외삼동", address: "대전 유성구 북유성대로 408 (외삼동)", phone: "042-823-5150", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.4003635, lng: 127.3094207 },
+        { id: 186, name: "구도일태전주유소", district: "유성구", dong: "원촌동", address: "대전 유성구 엑스포로 259 (원촌동)", phone: "042-863-5104", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3798371, lng: 127.4060722 },
+        { id: 187, name: "HD현대오일뱅크㈜직영 스마트셀프주유소", district: "유성구", dong: "원촌동", address: "대전 유성구 엑스포로 222 (원촌동)", phone: "042-862-5189", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3767637, lng: 127.404117 },
+        { id: 188, name: "HD현대오일뱅크㈜직영 세종관문셀프주유소", district: "유성구", dong: "하기동", address: "대전 유성구 북유성대로 288 (하기동)", phone: "042-826-5191", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3907329, lng: 127.3162024 },
+        { id: 189, name: "햇빛주유소", district: "유성구", dong: "송정동", address: "대전 유성구 계백로 87 (송정동)", phone: "042-825-6266", brand: "SK에너지", self: "Y", cashback: true, lat: 36.2764972, lng: 127.2617557 },
+        { id: 190, name: "대광주유소", district: "유성구", dong: "봉산동", address: "대전 유성구 금남구즉로 1355 (봉산동)", phone: "042-935-6667", brand: "S-OIL", self: "N", cashback: false, lat: 36.4479058, lng: 127.3845802 },
+        { id: 191, name: "북대전주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로 1495", phone: "042-864-2207", brand: "S-OIL", self: "Y", cashback: true, lat: 36.4094947, lng: 127.3803809 },
+        { id: 192, name: "HD현대오일뱅크㈜직영 송강주유소", district: "유성구", dong: "송강동", address: "대전 유성구 대덕대로 1131 (송강동)", phone: "042-935-4064", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.4280427, lng: 127.3854562 },
+        { id: 193, name: "동일석유㈜테크노밸리주유소", district: "유성구", dong: "용산동", address: "대전 유성구 테크노중앙로 139 (용산동)", phone: "042-936-5189", brand: "SK에너지", self: "Y", cashback: true, lat: 36.4243556, lng: 127.4006666 },
+        { id: 194, name: "SK에너지㈜ 유공셀프주유소", district: "유성구", dong: "구암동", address: "대전 유성구 유성대로 614 (구암동)", phone: "042-825-5153", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3492199, lng: 127.3270067 },
+        { id: 195, name: "HD현대오일뱅크㈜직영 노은주유소", district: "유성구", dong: "", address: "대전 유성구 노은동로 79", phone: "042-477-5182", brand: "HD현대오일뱅크", self: "N", cashback: false, lat: 36.3675494, lng: 127.3229374 },
+        { id: 196, name: "(주)학하 학하셀프주유소", district: "유성구", dong: "복용동", address: "대전 유성구 학하로 189 (복용동)", phone: "070-4187-4546", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3447643, lng: 127.3141422 },
+        { id: 197, name: "SK에너지㈜ 예성주유소", district: "유성구", dong: "", address: "대전 유성구 도안동로 488", phone: "042-822-6556", brand: "SK에너지", self: "Y", cashback: false, lat: 36.3476231, lng: 127.3483752 },
+        { id: 198, name: "한밭대앞Self주유소", district: "유성구", dong: "덕명동", address: "대전 유성구 학하서로 111 (덕명동)", phone: "042-525-5151", brand: "S-OIL", self: "Y", cashback: true, lat: 36.3473829, lng: 127.2994842 },
+        { id: 199, name: "관저주유소", district: "유성구", dong: "원내동", address: "대전 유성구 계백로 975 (원내동)", phone: "042-541-4202", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3019584, lng: 127.3318477 },
+        { id: 200, name: "우진주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로654번길 1", phone: "042-823-9606", brand: "S-OIL", self: "N", cashback: true, lat: 36.3524215, lng: 127.3295572 },
+        { id: 201, name: "(주)구암상사주유소", district: "유성구", dong: "", address: "대전 유성구 유성대로654번길 32", phone: "042-825-6162", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.3515862, lng: 127.3306505 },
+        { id: 202, name: "계룡주유소", district: "유성구", dong: "", address: "대전 유성구 현충원로 177", phone: "042-822-5111", brand: "S-OIL", self: "N", cashback: true, lat: 36.360356, lng: 127.2910811 },
+        { id: 203, name: "(주)황제충전소", district: "유성구", dong: "덕진동", address: "대전 유성구 대덕대로1021 (덕진동)", phone: "042-862-6464", brand: "SK에너지", self: "N", cashback: true, lat: 36.4194838, lng: 127.3791879 },
+        { id: 204, name: "지에스칼텍스(주)충대앞주유소", district: "유성구", dong: "궁동", address: "대전광역시 유성구 대학로 85 (궁동)", phone: "-", brand: "GS칼텍스", self: "Y", cashback: false, lat: 36.3612138, lng: 127.3437761 },
+        { id: 205, name: "구도일태전주유소오앤씨에너지 유한회사", district: "유성구", dong: "", address: "대전광역시 유성구 엑스포로 265", phone: "-", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3800421, lng: 127.4062493 },
+        { id: 206, name: "HD현대오일뱅크 위성셀프주유소", district: "유성구", dong: "장대동", address: "대전광역시 유성구 현충원로 492 (장대동)", phone: "042-825-5145", brand: "HD현대오일뱅크", self: "Y", cashback: false, lat: 36.3597676, lng: 127.3251063 },
+        { id: 207, name: "SK엔크린 유성하나로셀프주유소", district: "유성구", dong: "", address: "대전광역시 유성구 한밭대로 295", phone: "042-825-5149", brand: "SK에너지", self: "Y", cashback: false, lat: 36.366453, lng: 127.3334328 },
+        { id: 208, name: "(주)에스엘 성림주유소", district: "유성구", dong: "", address: "대전광역시 유성구 유성대로752번길 2", phone: "042-822-7322", brand: "S-OIL", self: "Y", cashback: false, lat: 36.3595156, lng: 127.3346414 },
+        { id: 209, name: "진터벌주유소", district: "유성구", dong: "", address: "대전광역시 유성구 유성대로654번길 168", phone: "-", brand: "S-OIL", self: "-", cashback: false, lat: 36.3502553, lng: 127.3381829 },
+        { id: 210, name: "대화공단LPG충전소", district: "대덕구", dong: "", address: "대전 대덕구 아리랑로63", phone: "042-638-0671", brand: "SK에너지", self: "N", cashback: true, lat: 36.3769171, lng: 127.4121962 },
+        { id: 211, name: "동학사LPG충전소", district: "유성구", dong: "", address: "대전 유성구 현충원로137", phone: "042-822-5172", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.361261, lng: 127.2862328 },
+        { id: 212, name: "방동LPG충전소", district: "유성구", dong: "방동", address: "대전 유성구 계백로473 (방동)", phone: "042-545-7117", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.2766646, lng: 127.2929571 },
+        { id: 213, name: "배재주유소", district: "서구", dong: "", address: "대전 서구 도솔로 57", phone: "042-532-5700", brand: "HD현대오일뱅크", self: "-", cashback: true, lat: 36.3158199, lng: 127.3731911 },
+        { id: 214, name: "세일가스-LPG충전소", district: "중구", dong: "옥계동", address: "대전 중구 대종로117 (옥계동)", phone: "042-271-2271", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.302682, lng: 127.450799 },
+        { id: 215, name: "송정가스충전소", district: "유성구", dong: "", address: "대전 유성구 계백로34", phone: "042-586-2220", brand: "SK에너지", self: "N", cashback: true, lat: 36.2784103, lng: 127.2567546 },
+        { id: 216, name: "싱글벙글LPG충전소", district: "서구", dong: "정림동", address: "대전 서구 계백로1249번길27 (정림동)", phone: "042-584-2006", brand: "S-OIL", self: "N", cashback: true, lat: 36.3072324, lng: 127.359858 },
+        { id: 217, name: "유성학하충전소", district: "유성구", dong: "학하동", address: "대전 유성구 진잠옛로135번길76, 1층 (학하동)", phone: "042-825-8998", brand: "S-OIL", self: "N", cashback: true, lat: 36.3326994, lng: 127.3076799 },
+        { id: 218, name: "정림가스충전소", district: "서구", dong: "정림동", address: "대전 서구 계백로1275 (정림동)", phone: "042-523-8235", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.3080311, lng: 127.3643956 },
+        { id: 219, name: "정민가스충전소", district: "대덕구", dong: "", address: "대전 대덕구 대전로1020번길 47", phone: "042-623-0487", brand: "SK에너지", self: "N", cashback: true, lat: 36.3485613, lng: 127.4194389 },
+        { id: 220, name: "진잠유통단지LPG충전소", district: "유성구", dong: "", address: "대전 유성구 교촌동331-1,8번지", phone: "042-544-1777", brand: "HD현대오일뱅크", self: "N", cashback: true, lat: 36.3112638, lng: 127.3178455 },
+        { id: 221, name: "상서충전소", district: "대덕구", dong: "상서동", address: "대전 대덕구 신탄진로484 (상서동)", phone: "042-932-6460", brand: "GS칼텍스", self: "N", cashback: true, lat: 36.4225022, lng: 127.4198891 }
       ];
 
       const districts = ['전체', '서구', '유성구', '중구', '동구', '대덕구'];
@@ -376,6 +399,7 @@
       const toggleOnly = (v) => {
         setOnlyCashback(v);
         setSearchHits([]);
+        setSelectedStation(null);
         const list = stations.filter(s => s.lat != null && (selectedDistrict === '전체' || s.district === selectedDistrict) && (!v || s.cashback === true));
         if (list.length) {
           const map = mapRef.current;
@@ -396,6 +420,11 @@
             .slice(0, 3)
             .map(x => x.s)
         : [];
+
+      const stationList = selectedStation
+        ? [selectedStation, ...nearby]
+        : filteredStations.filter(s => s.lat != null && s.lng != null);
+      const visibleStationList = showAllStations ? stationList : stationList.slice(0, 3);
 
       // 네이버 지도 생성 (로고·저작권 표기는 기본값 그대로 둡니다)
       useEffect(() => {
@@ -451,11 +480,11 @@
         });
       }, [mapReady, onlyCashback, selectedDistrict, selectedStation, searchHits]);
 
-      // [수정7,8] 제보 목록 불러오기 (최대 7개, 30초마다 갱신)
+      // 제보 목록 불러오기 (30초마다 갱신)
       const loadFeedback = () => {
         fetch('/api/feedback')
           .then(r => r.ok ? r.json() : Promise.reject())
-          .then(d => { setFeedbacks(d.slice(0, 10)); setFbMsg(''); })
+          .then(d => { setFeedbacks(Array.isArray(d) ? d : []); setFbMsg(''); })
           .catch(() => setFbMsg('제보 서버에 연결되지 않았습니다.'));
       };
       useEffect(() => {
@@ -463,6 +492,11 @@
         const t = setInterval(loadFeedback, 30000);
         return () => clearInterval(t);
       }, []);
+
+      const selectedFeedbacks = selectedStation
+        ? feedbacks.filter(fb => fb.station === selectedStation.name).slice(0, 5)
+        : [];
+      const recentFeedbacks = feedbacks.slice(0, 10);
 
       const handleCopyAddress = (addr) => {
         navigator.clipboard.writeText(addr);
@@ -491,31 +525,49 @@
       };
 
       return (
-        <div className="min-h-screen bg-slate-100 text-slate-800 font-sans pb-12">
-          <header className="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-50">
-            <div className="max-w-md md:max-w-5xl mx-auto">
-              <h1 className="text-lg font-bold">대전 온통대전 캐시백 주유소</h1>
-              <p className="text-xs text-emerald-100">대전사랑카드 가맹점 실시간 현황 안내</p>
+        <div className="min-h-screen bg-slate-100 text-slate-800 font-sans pb-28">
+          <header className="hero sticky top-0 z-50 px-4 pt-5 pb-4 shadow-sm">
+            <div className="relative z-10 max-w-md md:max-w-5xl mx-auto flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="brand-mark text-emerald-600" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 42V8a4 4 0 0 1 4-4h17a4 4 0 0 1 4 4v34M5 42h31M15 11h13v11H15zM34 13l7 7v14a4 4 0 0 1-8 0V23"/><path d="M38 17h4"/></svg></span>
+                <div>
+                  <h1 className="hero-title text-xl sm:text-2xl font-black">대전 온통대전<br/><em>주유소 캐시백 지도</em></h1>
+                  <p className="mt-1 text-[11px] text-slate-500">시민 제보로 함께 만드는 주유소 정보</p>
+                </div>
+              </div>
+              <button onClick={() => setMenuOpen(v => !v)} aria-label="메뉴 열기" className="rounded-xl p-3 text-2xl text-emerald-950 hover:bg-white/70">☰</button>
             </div>
+            <div className="hanbit-art" aria-hidden="true"><svg viewBox="0 0 280 170" width="100%" height="100%"><path d="M0 145h280M8 145v-32h20v32m8 0V96h26v49m8 0v-42h15v42m14 0V111h23v34m95 0v-30h19v30m8 0V91h27v54m8 0v-40h19v40" fill="none" stroke="#15905d" strokeWidth="3" strokeLinejoin="round"/><path d="M135 146V35m0 0v-17m-33 39h66l-7 18h-52zM112 77h46v12h-46zM121 90h28l9 56h-46z" fill="#168653" opacity=".72"/><path d="M30 130q35-16 68 0t68 0 68 0" fill="none" stroke="#55b985" strokeWidth="3"/><circle cx="135" cy="13" r="4" fill="#72c59a"/></svg></div>
+            {menuOpen && <nav className="max-w-md md:max-w-5xl mx-auto mt-3 rounded-2xl border border-emerald-100 bg-white p-3 shadow-lg grid grid-cols-2 gap-2 text-sm font-semibold">
+              <a href="#map-section" onClick={() => setMenuOpen(false)} className="rounded-lg p-2 hover:bg-emerald-50">🗺️ 지도</a>
+              <button onClick={() => { setInfoPage('guide'); setMenuOpen(false); }} className="rounded-lg p-2 text-left hover:bg-emerald-50">ℹ️ 이용안내</button>
+              <button onClick={() => { setInfoPage('notice'); setMenuOpen(false); }} className="rounded-lg p-2 text-left hover:bg-emerald-50">📢 공지사항</button>
+              <button onClick={() => { setInfoPage('faq'); setMenuOpen(false); }} className="rounded-lg p-2 text-left hover:bg-emerald-50">❔ FAQ</button>
+              <button onClick={() => { setInfoPage('privacy'); setMenuOpen(false); }} className="rounded-lg p-2 text-left hover:bg-emerald-50">🛡️ 개인정보 처리 안내</button>
+              <a href={SUGGEST_FORM_URL} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)} className="rounded-lg p-2 hover:bg-emerald-50">💬 건의사항</a>
+            </nav>}
           </header>
 
-          <main className="max-w-md md:max-w-5xl mx-auto p-4 space-y-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 leading-relaxed">
-              ⚠️ 캐시백은 연 매출 30억 원 이하 가맹점 등 조건에 따라 주유소마다 다르고, 정책·예산에 따라 바뀔 수 있습니다. 지도의 "미확인" 주유소는 결제 전 대전사랑카드 앱의 가맹점 찾기에서 꼭 확인해 주세요.
+          <main className="app-main max-w-md md:max-w-5xl mx-auto p-4 space-y-4">
+            <div className="notice-card rounded-2xl p-4 text-xs leading-relaxed shadow-sm">
+              <strong className="block mb-1 text-sm text-emerald-900">이용 전 확인해 주세요</strong>
+              캐시백 혜택은 온통대전 운영 정책과 예산에 따라 변경될 수 있어요. 방문 전 온통대전 앱에서 최신 가맹점 정보를 확인해 주세요.
             </div>
 
             <div className="bg-white p-3 rounded-xl shadow-sm space-y-3">
               <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-emerald-600 pointer-events-none">⌕</span>
                 <input
                   type="text"
-                  placeholder="주유소·동·도로 이름 검색 (예: 용전, 대흥동, 옥천로)"
+                  placeholder="주유소명 또는 주소 검색"
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); setOpenSug(true); setActiveIdx(-1); setSearchHits([]); }}
                   onFocus={() => setOpenSug(true)}
                   onBlur={() => setTimeout(() => setOpenSug(false), 150)}
                   onKeyDown={onSearchKey}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full h-14 pl-12 pr-16 border-0 rounded-2xl text-base shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300"
                 />
+                <button type="button" onClick={() => suggestions.length && pickSearch(null)} aria-label="검색" className="absolute right-0 top-0 h-14 w-14 rounded-r-2xl bg-emerald-600 text-2xl text-white shadow-sm hover:bg-emerald-700">⌕</button>
                 {openSug && searchTerm.trim() && (
                   <ul className="absolute left-0 right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-64 overflow-auto text-sm">
                     {suggestions.length === 0 && (
@@ -575,7 +627,7 @@
             )}
 
             {/* 지도 영역 */}
-            <div className="bg-white border rounded-xl p-2 shadow-sm space-y-2">
+            <div id="map-section" className="bg-white border border-emerald-50 rounded-3xl p-2 shadow-lg space-y-2">
               <div className="flex justify-between items-center text-xs text-slate-600 font-bold px-1">
                 <span>🗺️ 대전 지역 주유소 지도</span>
                 <span className="text-emerald-600 text-[11px]">🟢 캐시백 가능 / ⚪ 불가</span>
@@ -583,8 +635,22 @@
               <p className="text-[11px] text-slate-600 px-1">
                 {selectedDistrict === '전체' ? '대전' : selectedDistrict} 주유소 {stat(selectedDistrict).total}곳 중 <b className="text-emerald-700">캐시백 가능 {stat(selectedDistrict).ok}곳</b> · 운영자 확인 목록 기준
               </p>
-              <div id="map"></div>
+              <div className="relative">
+                <span className="map-count">등록 주유소 <b className="text-emerald-600">221곳</b></span>
+                <div id="map"></div>
+              </div>
             </div>
+
+            <section className="bg-white rounded-3xl p-4 shadow-lg border border-emerald-50">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-lg font-extrabold text-slate-900"><span className="mr-2 text-emerald-600">⌖</span>{selectedStation ? '선택 주유소 주변 목록' : '주변 주유소 목록'}</h3>
+                {stationList.length > 3 && <button onClick={() => setShowAllStations(v => !v)} className="text-sm font-semibold text-emerald-700">{showAllStations ? '접기' : '더보기'} ›</button>}
+              </div>
+              {visibleStationList.length === 0 && <p className="py-4 text-sm text-slate-500">표시할 좌표가 있는 주유소가 없습니다. 검색 자동완성에서 주유소를 선택해 정보를 확인할 수 있어요.</p>}
+              {visibleStationList.map(st => <button key={`list-${st.id}`} onClick={() => { setSelectedStation(st); if(st.lat != null && mapRef.current) setView(mapRef.current,st.lat,st.lng,17); }} className="station-row flex w-full items-center gap-3 py-3 text-left last:border-0">
+                <span className="station-icon"><svg viewBox="0 0 48 48" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 42V8a4 4 0 0 1 4-4h17a4 4 0 0 1 4 4v34M5 42h31M15 11h13v11H15zM34 13l7 7v14a4 4 0 0 1-8 0V23"/></svg></span><span className="min-w-0 flex-1"><b className="block truncate text-sm text-slate-900">{st.name}</b><small className="block truncate text-xs text-slate-500">{st.address}</small></span><span className="text-lg text-emerald-900">›</span>
+              </button>)}
+            </section>
 
             {/* 선택 주유소 카드 */}
             {selectedStation ? (
@@ -658,8 +724,12 @@
             </div>
 
             {/* [수정7,8] 시민 실시간 피드백 */}
-            <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-              <h4 className="text-xs font-bold text-slate-800">💬 시민 실시간 이용 현황 (최근 10건)</h4>
+            <div id="feedback" className="bg-white rounded-3xl p-4 shadow-lg space-y-3 border border-emerald-50">
+              <div className="participation-card rounded-2xl p-4">
+                <h4 className="text-base font-extrabold text-emerald-950">💙 시민 제보가 모이면 더 정확해져요</h4>
+                <p className="mt-1 text-xs leading-relaxed text-slate-600">주유소를 선택하고 실제 온통대전 캐시백 이용 결과를 알려주세요. 여러분의 참여가 다음 시민에게 도움이 됩니다.</p>
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">💬 시민 이용 피드백</h4>
 
               <div className="bg-slate-50 p-3 rounded-lg border space-y-2">
                 <div className="text-xs text-slate-700">
@@ -682,39 +752,67 @@
                 {fbNotice && <p className="text-[11px] text-slate-600">{fbNotice}</p>}
               </div>
 
-              <div className="space-y-1">
-                {fbMsg && <p className="text-[11px] text-slate-400 text-center">{fbMsg}</p>}
-                {!fbMsg && feedbacks.length === 0 && <p className="text-[11px] text-slate-400 text-center">아직 제보가 없습니다. 첫 제보를 남겨주세요!</p>}
-                {feedbacks.map((fb, i) => (
-                  <div key={i} className="flex flex-wrap gap-1 items-center justify-between text-xs py-1.5 px-2 bg-slate-50 rounded border border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${fb.status === '가능' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                        {fb.status === '가능' ? '🟢 가능' : '🔴 불가'}
-                      </span>
-                      <span className="font-semibold text-slate-800">{fb.station}</span>
-                    </div>
+              <section className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                <h5 className="text-xs font-bold text-emerald-950">📍 선택한 주유소 피드백 (최대 5건)</h5>
+                {!selectedStation && <p className="text-[11px] text-slate-500">지도에서 주유소를 선택하면 해당 주유소의 피드백이 여기에 표시됩니다.</p>}
+                {selectedStation && selectedFeedbacks.length === 0 && <p className="text-[11px] text-slate-500">이 주유소에 등록된 피드백이 아직 없습니다.</p>}
+                {selectedFeedbacks.map((fb, i) => (
+                  <div key={`station-${i}`} className="flex flex-wrap gap-1 items-center justify-between text-xs py-1.5 px-2 bg-white rounded border border-emerald-100">
+                    <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${fb.status === '가능' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                      {fb.status === '가능' ? '🟢 가능' : '🔴 불가'}
+                    </span>
                     <span className="text-[10px] text-slate-400 whitespace-nowrap tabular-nums">{fmtTime(fb.created)}</span>
                   </div>
                 ))}
-              </div>
+              </section>
+
+              <section className="space-y-2">
+                <h5 className="text-xs font-bold text-slate-800">전체 최신 피드백 (최대 10건)</h5>
+                <div className="space-y-1">
+                  {fbMsg && <p className="text-[11px] text-slate-400 text-center">{fbMsg}</p>}
+                  {!fbMsg && recentFeedbacks.length === 0 && <p className="text-[11px] text-slate-400 text-center">아직 제보가 없습니다. 첫 제보를 남겨주세요!</p>}
+                  {recentFeedbacks.map((fb, i) => (
+                    <div key={`all-${i}`} className="flex flex-wrap gap-1 items-center justify-between text-xs py-1.5 px-2 bg-slate-50 rounded border border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${fb.status === '가능' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                          {fb.status === '가능' ? '🟢 가능' : '🔴 불가'}
+                        </span>
+                        <span className="font-semibold text-slate-800">{fb.station}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 whitespace-nowrap tabular-nums">{fmtTime(fb.created)}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
 
-            {/* [수정9] 건의사항: 구글폼 (응답은 운영자만 열람 가능) */}
-            <div className="bg-white rounded-xl p-4 shadow-sm space-y-2 border">
-              <h4 className="text-xs font-bold text-slate-800">✉️ 운영자에게 건의/의견 보내기</h4>
-              <p className="text-[11px] text-slate-500">오류 제보나 개선 의견은 운영자에게만 전달됩니다.</p>
-              <a
-                href={SUGGEST_FORM_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="block text-center bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition"
-              >
-                건의사항 작성하기 ↗
-              </a>
-            </div>
-            <p className="text-[10px] text-slate-400 text-center leading-relaxed">
-              주유소 정보는 운영자가 정리한 목록(총 221곳) 기준이며 실제와 다를 수 있습니다. 지도는 네이버 지도를 사용합니다.
-            </p>
+            <section id="site-guide" className="space-y-2">
+              <h4 className="px-1 text-lg font-extrabold text-slate-900">한눈에 보는 안내</h4>
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={() => setInfoPage('guide')} className="icon-tile rounded-2xl p-2"><span className="tile-icon"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="16" cy="16" r="12"/><path d="M16 14v8m0-14h.01"/></svg></span><b className="text-xs">이용안내</b></button>
+                <button onClick={() => setInfoPage('notice')} className="icon-tile rounded-2xl p-2"><span className="tile-icon"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"><path d="M4 13h6l15-6v18l-15-6H4zM10 19l3 8h5l-4-9M26 12l3-3m-3 12 3 3"/></svg></span><b className="text-xs">공지사항</b></button>
+                <button onClick={() => setInfoPage('faq')} className="icon-tile rounded-2xl p-2"><span className="tile-icon"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="16" cy="16" r="12"/><path d="M12.5 12a3.6 3.6 0 1 1 6.2 2.5c-1.6 1.6-2.7 2.2-2.7 4.5m0 4h.01"/></svg></span><b className="text-xs">FAQ</b></button>
+                <a href={SUGGEST_FORM_URL} target="_blank" rel="noreferrer" className="icon-tile rounded-2xl p-2"><span className="tile-icon"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"><path d="M5 6h22v16H15l-7 5v-5H5zM10 12h12m-12 5h8"/></svg></span><b className="text-xs">건의사항</b></a>
+                <button onClick={() => setInfoPage('operator')} className="icon-tile rounded-2xl p-2"><span className="tile-icon"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="16" cy="9" r="5"/><path d="M6 28c.7-6 4.3-9 10-9s9.3 3 10 9"/></svg></span><b className="text-xs">운영자 소개</b></button>
+                <button onClick={() => setInfoPage('privacy')} className="icon-tile rounded-2xl p-2"><span className="tile-icon"><svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round"><path d="M16 3 27 7v8c0 7-4.5 11-11 14C9.5 26 5 22 5 15V7z"/><path d="m10 16 4 4 8-9"/></svg></span><b className="text-[10px] leading-tight">개인정보처리방침</b></button>
+              </div>
+            </section>
+            {infoPage && <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-slate-950/40 p-0 sm:p-4" onClick={() => setInfoPage('')}>
+              <section role="dialog" aria-modal="true" className="w-full max-w-lg max-h-[82vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-extrabold text-slate-900">{{guide:'이용안내',notice:'공지사항',faq:'자주 묻는 질문',operator:'운영자 소개',privacy:'개인정보처리방침'}[infoPage]}</h3><button onClick={() => setInfoPage('')} className="rounded-full bg-slate-100 px-3 py-1 text-xl">×</button></div>
+                {infoPage==='guide' && <div className="space-y-3 text-sm leading-relaxed text-slate-700"><p>검색창에서 주유소명이나 주소를 검색하거나 지도 마커를 눌러 상세 정보를 확인하세요.</p><p>초록색 표시는 운영자가 온통대전 앱에서 캐시백 가능을 확인한 82곳입니다. 결제 전 최신 가맹점 상태를 앱에서 확인해 주세요.</p><p>정보가 다르면 시민 피드백으로 알려주세요. 제보는 1분 간격으로 등록할 수 있습니다.</p></div>}
+                {infoPage==='notice' && <p className="text-sm leading-relaxed text-slate-700">주유소 정보와 좌표를 계속 확인하고 업데이트하고 있습니다. 수정할 정보가 있으면 시민 피드백이나 건의사항으로 알려주세요.</p>}
+                {infoPage==='faq' && <div className="space-y-4 text-sm leading-relaxed text-slate-700"><p><b>캐시백 가능 표시는 어떤 기준인가요?</b><br/>운영자가 온통대전 앱에서 확인한 82곳을 표시합니다. 정책이나 가맹점 상태가 바뀔 수 있으니 결제 전 앱에서 다시 확인해 주세요.</p><p><b>주유소를 눌러도 지도에서 움직이지 않아요.</b><br/>좌표가 준비된 곳은 지도가 해당 위치로 이동합니다. 검색 자동완성에서는 좌표가 없어도 주소와 연락처를 확인할 수 있습니다.</p><p><b>정보가 맞지 않으면 어떻게 하나요?</b><br/>시민 피드백으로 알려주세요. 중복 제보를 줄이기 위해 1분 간격 제한이 적용됩니다.</p></div>}
+                {infoPage==='operator' && <p className="text-sm leading-relaxed text-slate-700">[운영자명, 운영 목적, 문의 이메일을 입력해 주세요.] 이 사이트는 시민 편의를 위한 정보 안내이며 온통대전 운영기관의 공식 서비스가 아닙니다.</p>}
+                {infoPage==='privacy' && <div className="space-y-4 text-sm leading-relaxed text-slate-700"><div><h4 className="font-bold text-slate-900">이용약관</h4><p>본 사이트는 참고용 정보를 제공하며 캐시백 적용을 보장하지 않습니다. 결제 전에 온통대전 앱에서 최신 가맹점 상태를 확인해 주세요. [운영자명·시행일·문의처를 공개 전에 입력해 주세요.]</p></div><div><h4 className="font-bold text-slate-900">개인정보 처리방침</h4><p>피드백 기능은 선택한 주유소와 이용자가 선택한 가능/불가 상태를 서버에 전달합니다. [실제 수집 항목·보유 기간·삭제 요청 방법·문의처를 운영 방식에 맞게 입력한 뒤 공개해 주세요.]</p></div></div>}
+              </section>
+            </div>}
+            <nav className="bottom-nav fixed bottom-0 left-0 right-0 z-40 grid grid-cols-4 border-t border-emerald-100 bg-white/95 px-2 pt-2 text-center text-[11px] font-semibold text-slate-600 backdrop-blur">
+              <a href="#map-section" className="py-2 text-emerald-600"><span className="block text-xl">⌖</span>지도</a>
+              <button onClick={() => setInfoPage('guide')} className="py-2"><span className="block text-xl">▤</span>이용안내</button>
+              <button onClick={() => setInfoPage('notice')} className="py-2"><span className="block text-xl">♧</span>공지사항</button>
+              <button onClick={() => setInfoPage('privacy')} className="py-2"><span className="block text-xl">•••</span>더보기</button>
+            </nav>
           </main>
         </div>
       );
