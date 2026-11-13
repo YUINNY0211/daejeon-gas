@@ -16,7 +16,7 @@
     body { background: #f3faf6; color:#10264d; }
     .hero { background:radial-gradient(ellipse at 85% 10%,rgba(69,179,126,.2),transparent 48%),linear-gradient(135deg,#f7fcf8 0%,#e4f4e9 100%); border-radius:0 0 28px 28px; }
     .hero-title { color:#183d2d; line-height:1.08; }
-.hanbit-art { position:absolute; right:5%; bottom:0; width:min(42vw,280px); height:125px; opacity:.25; pointer-events:none; }
+.hanbit-art { position:absolute; right:4%; bottom:0; width:min(52vw,360px); height:155px; opacity:.34; pointer-events:none; }
     .hero-title em { color:#087f53; font-style:normal; }
     .icon-tile { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; min-height:108px; border:1px solid #e6edfa; background:linear-gradient(160deg,#fff,#f8fbff); color:#142d59; box-shadow:0 7px 18px rgba(26,88,58,.08); transition:transform .18s,box-shadow .18s; }
     .icon-tile:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(26,88,58,.13); }
@@ -39,13 +39,14 @@
     @media (min-width: 768px) { #map { height: 72vh; min-height: 560px; max-height: 820px; } }
     /* 네이버 로고·저작권 표기는 가리거나 수정하지 않습니다 */
     /* [수정4] 주유소 풀네임 표시: 점 + 이름 라벨 */
-    .pin { position: relative; width: 16px; height: 16px; }
-    .pin i { display: block; width: 16px; height: 16px; border-radius: 9999px; background: #059669; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
-    .pin.off i { background: #6b7280; }
-    .pin.sel i { outline: 3px solid #f59e0b; }
-    .pin.sel b { background: #fef3c7; }
-    .pin b { position: absolute; left: 19px; top: -2px; white-space: nowrap; font-size: 10px; font-weight: bold; color: #064e3b; background: rgba(255,255,255,0.92); padding: 1px 5px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-    .pin.off b { color: #374151; }
+    .pin { position: relative; width: 27px; height: 34px; }
+    .pin i { position:absolute; left:3px; top:2px; display:block; width:20px; height:20px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); background:#059669; border:2px solid white; box-shadow:0 2px 6px rgba(0,0,0,.34); }
+    .pin i::after { content:''; position:absolute; width:6px; height:6px; left:5px; top:5px; border-radius:50%; background:#fff; }
+    .pin.off i { background:#64748b; }
+    .pin.sel i { background:#f59e0b; box-shadow:0 0 0 4px rgba(245,158,11,.2),0 2px 6px rgba(0,0,0,.34); }
+    .pin.sel b { background:#fef3c7; }
+    .pin b { position:absolute; left:27px; top:3px; white-space:nowrap; font-size:10px; font-weight:bold; color:#064e3b; background:rgba(255,255,255,.95); padding:2px 6px; border-radius:7px; box-shadow:0 1px 4px rgba(0,0,0,.22); }
+    .pin.off b { color:#374151; }
   </style>
 </head>
 <body class="bg-slate-100">
@@ -88,13 +89,19 @@
     // 캐시백 상태 문구: true=가능 / false=불가 / null=미확인
     const cbText = (s) => s.cashback === true ? '🟢 캐시백 가능' : s.cashback === false ? '⚪ 캐시백 불가' : '⚪ 캐시백 미확인';
     const selfText = (v) => v === 'Y' ? '셀프 주유소' : v === 'N' ? '일반(직원 주유)' : '정보 없음';
+    const naverDirectionsUrl = (station) => {
+      const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const appname = encodeURIComponent(location.origin === 'null' ? 'https://map.naver.com' : location.origin);
+      if (mobile) return `nmap://route/car?dlat=${station.lat}&dlng=${station.lng}&dname=${encodeURIComponent(station.name)}&appname=${appname}`;
+      return `https://map.naver.com/p/search/${encodeURIComponent(station.name + ' ' + station.address)}`;
+    };
     // 제보 시각: 한국시간 연-월-일 시:분:초
     const fmtTime = (t) => new Date(t).toLocaleString('sv-SE', { timeZone: 'Asia/Seoul', hour12: false });
 
     function App() {
       const [selectedDistrict, setSelectedDistrict] = useState('전체');
       const [searchTerm, setSearchTerm] = useState('');
-      const [onlyCashback, setOnlyCashback] = useState(false);
+      const [onlyCashback, setOnlyCashback] = useState(true);
       const [selectedStation, setSelectedStation] = useState(null);
       const [menuOpen, setMenuOpen] = useState(false);
       const [infoPage, setInfoPage] = useState('');
@@ -427,7 +434,7 @@
       const stationList = selectedStation
         ? nearbyAll
         : filteredStations.filter(s => s.lat != null && s.lng != null);
-      const visibleStationList = showAllStations ? stationList : stationList.slice(0, 3);
+      const visibleStationList = stationList.slice(0, showAllStations ? 5 : 3);
 
       // 네이버 지도 생성 (로고·저작권 표기는 기본값 그대로 둡니다)
       useEffect(() => {
@@ -475,7 +482,7 @@
             zIndex: sel ? 100 : 1,
             icon: {
               content: `<div class="pin ${s.cashback === true ? '' : 'off'} ${sel ? 'sel' : ''}"><i></i><b>${escH(s.name)}</b></div>`,
-              anchor: new naver.maps.Point(8, 8)
+              anchor: new naver.maps.Point(13, 30)
             }
           });
           naver.maps.Event.addListener(marker, 'click', () => setSelectedStation(s));
@@ -540,7 +547,7 @@
               </div>
               <button onClick={() => setMenuOpen(v => !v)} aria-label="메뉴 열기" className="rounded-xl p-3 text-2xl text-emerald-950 hover:bg-white/70">☰</button>
             </div>
-            <div className="hanbit-art" aria-hidden="true"><svg viewBox="0 0 280 170" width="100%" height="100%"><path d="M0 145h280M8 145v-32h20v32m8 0V96h26v49m8 0v-42h15v42m14 0V111h23v34m95 0v-30h19v30m8 0V91h27v54m8 0v-40h19v40" fill="none" stroke="#15905d" strokeWidth="3" strokeLinejoin="round"/><path d="M135 146V35m0 0v-17m-33 39h66l-7 18h-52zM112 77h46v12h-46zM121 90h28l9 56h-46z" fill="#168653" opacity=".72"/><path d="M30 130q35-16 68 0t68 0 68 0" fill="none" stroke="#55b985" strokeWidth="3"/><circle cx="135" cy="13" r="4" fill="#72c59a"/></svg></div>
+            <div className="hanbit-art" aria-hidden="true"><svg viewBox="0 0 360 190" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="artRiver" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#77c9b3"/><stop offset="1" stopColor="#b2e1d1"/></linearGradient></defs><circle cx="286" cy="48" r="34" fill="#f3c969" opacity=".58"/><path d="M0 126Q65 83 126 119T252 108t108-9v91H0z" fill="#a9d8b9" opacity=".72"/><path d="M0 145q62-29 126-2t121-8 113-12v67H0z" fill="#70bc91" opacity=".72"/><path d="M0 165q74-23 143-2t114-4 103-9v40H0z" fill="url(#artRiver)" opacity=".82"/><g fill="#fff" opacity=".76"><rect x="18" y="103" width="24" height="43" rx="3"/><rect x="47" y="88" width="32" height="58" rx="4"/><rect x="83" y="110" width="21" height="36" rx="3"/><rect x="273" y="99" width="26" height="48" rx="3"/><rect x="304" y="82" width="35" height="65" rx="4"/></g><g fill="#58a97c" opacity=".78"><path d="M185 146V50l-30-18h60l-30 18zm-43 0h86v7h-86z"/><path d="M178 50h14v6h-14zm-7 20h28v5h-28zm-6 20h40v5h-40zm-5 20h50v5h-50z"/></g><path d="M185 32V14m-5 0h10m-9-5h8" stroke="#27865b" strokeWidth="3" strokeLinecap="round"/><g fill="#fff" opacity=".9"><circle cx="116" cy="37" r="2"/><circle cx="137" cy="56" r="2"/><circle cx="247" cy="31" r="2"/><circle cx="323" cy="52" r="2"/></g></svg></div>
             {menuOpen && <nav className="max-w-md md:max-w-5xl mx-auto mt-3 rounded-2xl border border-emerald-100 bg-white p-3 shadow-lg grid grid-cols-2 gap-2 text-sm font-semibold">
               <a href="#map-section" onClick={() => setMenuOpen(false)} className="rounded-lg p-2 hover:bg-emerald-50">🗺️ 지도</a>
               <button onClick={() => { setInfoPage('guide'); setMenuOpen(false); }} className="rounded-lg p-2 text-left hover:bg-emerald-50">ℹ️ 이용안내</button>
@@ -661,7 +668,7 @@
                   {copyStatus ? '✅ 주소 복사 완료!' : '📋 주소 복사하기'}
                 </button>
                 <div className="grid grid-cols-2 gap-2">
-                  <a href={`nmap://route/car?dlat=${selectedStation.lat}&dlng=${selectedStation.lng}&dname=${encodeURIComponent(selectedStation.name)}&appname=${encodeURIComponent(location.origin === 'null' ? 'https://map.naver.com' : location.origin)}`} className="rounded-xl bg-emerald-700 px-2 py-3 text-center text-xs font-bold text-white shadow-sm hover:bg-emerald-800">네이버 자동차 길찾기 ↗</a>
+                  <a href={naverDirectionsUrl(selectedStation)} target={/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? undefined : '_blank'} rel="noreferrer" className="rounded-xl bg-emerald-700 px-2 py-3 text-center text-xs font-bold text-white shadow-sm hover:bg-emerald-800">네이버지도 길찾기 ↗</a>
                   <a href={`https://map.kakao.com/link/to/${encodeURIComponent(selectedStation.name)},${selectedStation.lat},${selectedStation.lng}`} target="_blank" rel="noreferrer" className="rounded-xl bg-[#FEE500] px-2 py-3 text-center text-xs font-bold text-slate-900 shadow-sm hover:brightness-95">카카오맵 길찾기 ↗</a>
                 </div>
                 {stationList.length > 0 && <div className="border-t border-emerald-200 pt-3">
