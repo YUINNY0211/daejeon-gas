@@ -19,12 +19,6 @@ main{padding-top:13px}.card{background:white;border:1px solid #e5f0e9;border-rad
 @media(min-width:768px){.wrap{width:min(100% - 40px,980px)}.hero{padding:16px 0}.logo{width:170px;height:60px}.hero-title{font-size:24px}#map{height:68vh;min-height:520px;max-height:770px}.guide-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 
 .hero{position:relative;overflow:hidden;isolation:isolate;background:radial-gradient(ellipse at 85% 10%,rgba(69,179,126,.2),transparent 48%),linear-gradient(135deg,#f7fcf8 0%,#e4f4e9 100%);border-radius:0 0 24px 24px;padding:14px 0 17px;min-height:155px}.hero-row{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:122px}.hero-brand{display:flex;align-items:center;gap:11px;max-width:72%;position:relative;z-index:2}.brand-mark{width:42px;height:42px;flex:none;display:grid;place-items:center;color:#168454;background:#ffffffa8;border-radius:14px}.brand-mark svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.hero-title{margin:0;color:#183d2d;line-height:1.08;font-size:22px;font-weight:900;letter-spacing:-.6px;font-family:system-ui,-apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif}.hero-title em{color:#087f53;font-style:normal}.hero-sub{margin:5px 0 0;color:#536d60;font-size:10px}.hanbit-art{position:absolute;right:4%;bottom:0;width:min(52vw,360px);height:155px;opacity:.34;pointer-events:none}.hanbit-art svg{width:100%;height:100%}.menu-toggle{position:relative;z-index:3;border:0;background:#ffffffd9;border-radius:12px;padding:8px 11px;color:#183d2d;font-size:24px;line-height:1}.top-menu{position:fixed;inset:12px 12px auto auto;z-index:102;width:min(86vw,340px);height:auto;max-height:calc(100dvh - 24px);overflow:auto;margin:0;padding:14px;background:#fff;border:0;border-radius:18px 0 0 18px;box-shadow:0 8px 40px #10251d35;display:grid;align-content:start;gap:6px;transform:translateX(105%);transition:transform .24s ease}.top-menu.open{transform:translateX(0)}.top-menu[hidden]{display:none}.top-menu button{padding:14px;text-align:left;border:1px solid #e7eee8;border-radius:12px;background:white;color:#284b39;font-weight:750}.drawer-backdrop{position:fixed;inset:0;z-index:101;background:#07180f70}.drawer-backdrop[hidden]{display:none}@media(max-width:767px){.hero{min-height:125px}.hero-row{min-height:96px}.hero-title{font-size:20px}.hero-brand{max-width:76%}.brand-mark{width:36px;height:36px}.hanbit-art{right:0;width:58%;height:115px}}@media(min-width:768px){.hero{min-height:165px}.hero-row{min-height:137px}.hanbit-art{right:7%;height:160px}}.guide-link.guide-pulse{animation:guideAttention 1s ease-in-out 2;background:linear-gradient(115deg,#fff2bb,#e2f6e8 55%,#fff)!important;border-color:#f0cb56!important;box-shadow:0 0 0 4px #f5dc7a66,0 8px 24px #176b412e!important;transform:translateY(-2px)}@keyframes guideAttention{50%{filter:saturate(1.65);transform:scale(1.025)}}.opinet-info{display:flex;align-items:center;justify-content:space-between;gap:12px}.opinet-info h2{font-size:14px;margin:0 0 4px;color:#214b34}.opinet-info p{font-size:11px;line-height:1.5;color:#65746a;margin:0}.opinet-info a{flex:none;min-width:200px;min-height:40px;padding:8px 26px;border-radius:10px;background:var(--g);color:white;text-decoration:none;font-size:12px;font-weight:850;display:inline-flex;align-items:center;justify-content:center}.phone-link{display:inline-block;color:#1268a4;font-weight:800;text-decoration:underline;text-underline-offset:2px}.top-menu button{padding:11px 13px}.top-menu{gap:5px}@media(max-width:520px){.opinet-info{align-items:center;flex-direction:row;justify-content:space-between;gap:6px}.opinet-info h2{font-size:11px;white-space:nowrap}.opinet-info a{width:auto;min-width:0;min-height:30px;padding:6px 7px;font-size:9px;white-space:nowrap;text-align:center}}
-.faq-index-list{display:grid;gap:6px;margin-bottom:12px}.faq-index-btn{width:100%;padding:11px 13px;border:1px solid #dcebe2;border-radius:10px;background:#f8fcf9;text-align:left;color:#1b4d34;font-size:12px;font-weight:750;cursor:pointer}.faq-index-btn:hover{background:#eef8f1}
-.faq-back-btn{display:inline-flex;align-items:center;gap:4px;border:1px solid #cde2d5;background:#f3faf6;color:#1b543d;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:800;margin-bottom:12px;cursor:pointer}
-.faq-back-btn:hover{background:#e5f4ec}
-.faq-pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px}
-.faq-page-btn{border:1px solid #cde2d5;background:white;color:#1b543d;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:800;cursor:pointer}
-.faq-page-btn.active{background:var(--g);color:white;border-color:var(--g)}
 </style>
 </head>
 <body>
@@ -90,7 +84,7 @@ function setupModalSwipe(box){
   track.addEventListener('scroll',sync,{passive:true});
   sync();
 }
-function openPage(key, faqPage=1, faqSelectedIdx=null){
+function openPage(key){
   const title={guide:'이용안내',faq:'자주 묻는 질문',notice:'공지사항',updates:'업데이트',privacy:'개인정보 처리방침',operator:'서비스 소개',news:'소식'},
   faqList=[
     {q:'Q1. 이 사이트의 주유소 정보와 캐시백 여부는 공식 데이터인가요?', a:'본 서비스는 대전광역시 내 전체 주유소 기본 데이터와 온통대전(대전사랑카드) 공식 앱의 가맹점 등록 정보, 그리고 시민들의 실제 이용 제보를 바탕으로 운영자가 직접 검증하여 제공하는 비공식 민간 안내 플랫폼입니다. 정확한 결제 혜택을 위해 방문 전 온통대전 공식 앱에서 최신 상태를 함께 확인하시기 바랍니다.'},
@@ -110,6 +104,18 @@ function openPage(key, faqPage=1, faqSelectedIdx=null){
       +'<div class="swipe-slide"><h3>1. 주유소 검색 및 정보 확인</h3><p>상단 검색창에 주유소 상호를 검색하거나 지역구를 선택하면 원하는 장소를 빠르게 찾을 수 있습니다.</p><p>지도 위의 핀을 선택하면 개별 주유소의 상호, 주소, 연락처 및 캐시백 적용 여부(🟢가능/🔴불가)를 직관적으로 확인할 수 있습니다.</p></div>'
       +'<div class="swipe-slide"><h3>2. 캐시백 정보의 한계 및 면책 조항</h3><p>본 사이트에 표시된 캐시백 가능 여부는 운영자가 온통대전 앱 데이터를 기반으로 수집 및 정리한 참고용 정보입니다.</p><p>대전시의 정책 변경, 예산 조기 소진, 가맹점 계약 해지 등에 따라 실제 결제 시 혜택 적용 여부가 달라질 수 있습니다. 정확한 혜택 확인을 위해 방문 및 주유 전 온통대전 공식 앱 내 가맹점 찾기를 반드시 병행해 주시기 바랍니다.</p></div>'
       +'<div class="swipe-slide"><h3>3. 정보 오류 제보</h3><p>폐업, 상호 변경, 캐시백 정책 변동 등으로 실제 정보와 다른 주유소를 발견하신 경우, 하단 메뉴의 ‘제보하기’를 통해 수정 요청을 남겨주시면 신속하게 검토 및 반영하겠습니다.</p></div>'
+    +'</div>',
+    faq:'<p class="swipe-hint">↔ 옆으로 넘겨서 확인하세요 (1/2 페이지)</p><div class="swipe-track">'
+      +'<div class="swipe-slide"><h3>Q1. 이 사이트의 주유소 정보와 캐시백 여부는 공식 데이터인가요?</h3><p>본 서비스는 대전광역시 내 전체 주유소 기본 데이터와 온통대전(대전사랑카드) 공식 앱의 가맹점 등록 정보, 그리고 시민들의 실제 이용 제보를 바탕으로 운영자가 직접 검증하여 제공하는 비공식 민간 안내 플랫폼입니다. 정확한 결제 혜택을 위해 방문 전 온통대전 공식 앱에서 최신 상태를 함께 확인하시기 바랍니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q2. 캐시백 ‘가능’ 주유소에서 결제했는데 적립되지 않았습니다.</h3><p>결제 시점에 다음 사유가 발생했을 가능성이 높습니다.<br>① 대전시 온통대전 월별 발행 예산이 조기 소진된 경우<br>② 본인의 월간 캐시백 지급 한도를 이미 모두 사용한 경우<br>③ 주유소의 법인 명의 변경이나 가맹점 계약 해지가 최근에 이루어진 경우입니다.<br>③번에 해당하는 경우 제보를 통해 알려주시면 즉시 수정하겠습니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q3. 대전시에 있는 모든 주유소가 등록되어 있나요?</h3><p>네. 캐시백 적용 여부와 관계없이 대전광역시 전 지역(동구, 중구, 서구, 유성구, 대덕구)에 운영 중인 전체 주유소 및 충전소의 상호, 도로명 주소, 연락처 정보를 빠짐없이 구축하는 것을 목표로 하고 있습니다. 신규 개업이나 폐업으로 누락된 곳이 있다면 제보를 통해 반영됩니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q4. LPG 충전소도 조회할 수 있나요?</h3><p>현재 일반 휘발유·경유 주유소와 함께 주요 LPG 충전소 데이터가 포함되어 있습니다. 온통대전 가맹점으로 등록된 충전소 역시 지도 핀과 검색을 통해 캐시백 가능 여부를 동일하게 확인하실 수 있습니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q5. 주유소마다 캐시백 적용 여부가 다른 이유는 무엇인가요?</h3><p>온통대전은 지역 소상공인 보호 및 지역 경제 활성화를 목적으로 운영되므로, 연 매출액 기준을 초과하는 직영 주유소나 본사가 타 지역에 등록된 일부 법인 주유소는 가맹점 등록이 제한되어 캐시백 대상에서 제외됩니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q6. 실시간 유가 정보도 확인할 수 있나요?</h3><p>본 사이트는 주유소 위치 및 온통대전 캐시백 적용 여부 확인에 특화되어 있습니다. 실시간 유가 비교가 필요하신 경우 화면 하단에 연동된 한국석유공사 ‘오피넷(Opinet)’ 바로가기 버튼을 통해 즉시 확인하실 수 있습니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q7. 지도에서 주유소 위치가 실제와 조금 다르게 표시됩니다.</h3><p>공공 데이터의 도로명 주소를 좌표로 변환하는 과정에서 대형 부지 주유소나 신설 도로 인근 매장의 핀 위치에 미세한 오차가 발생할 수 있습니다. 위치 오류가 있는 주유소를 발견하시면 ‘제보하기’로 정확한 위치를 알려주시면 보완하겠습니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q8. 모바일에서 내 주변 주유소만 빠르게 찾는 방법이 있나요?</h3><p>이용자의 실시간 GPS 위치 정보 추적에 따른 개인정보 및 보안 우려를 원천 차단하기 위해 자동 위치 추적 기능은 의도적으로 배제하였습니다. 대신 상단 검색창에 현재 위치한 동 이름(예: 둔산동, 가수원동)을 입력하시거나 지역구 필터를 선택하시면 해당 구역의 주유소 목록과 지도를 안전하고 빠르게 확인하실 수 있습니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q9. 잘못된 정보나 폐업한 주유소는 어떻게 제보하나요?</h3><p>화면 하단 메뉴의 ‘💬제보하기’에서 ‘주유소 정보 오류’를 누르고 상세 내용을 남겨주시면 운영자 확인 후 업데이트합니다.</p></div>'
+      +'<div class="swipe-slide"><h3>Q10. 별도의 회원가입이나 비용 없이 무료로 이용할 수 있나요?</h3><p>네. 대전 시민 누구나 회원가입이나 로그인 절차 없이 모든 검색 및 지도 기능을 100% 무료로 이용할 수 있습니다. 이름, 연락처, 위치 등 이용자를 식별할 수 있는 개인정보를 별도로 요구하거나 저장하지 않으므로 부담 없이 이용하시기 바랍니다.</p></div>'
     +'</div>',
     notice:'<h3>서비스 이용 및 데이터 안내</h3><ul><li><b>비공식 민간 서비스 안내:</b> 본 사이트는 대전 시민의 주유 편의를 돕기 위해 개인 운영자가 제작한 비공식 지도 안내 서비스이며, 대전광역시 및 온통대전(대전사랑카드) 운영기관의 공식 페이지가 아닙니다.</li><li><b>데이터 정확도 및 면책 고지:</b> 제공되는 대전 전 지역 주유소 위치 및 캐시백 적용 여부는 공공 데이터와 공식 앱 가맹점 정보를 대조하여 정리한 참고용 자료입니다. 폐업, 상호 변경, 예산 조기 소진 등에 따라 실제 결제 시 적용 여부와 다를 수 있으므로, 방문 전 온통대전 공식 앱에서 최신 상태를 반드시 확인해 주시기 바랍니다.</li><li><b>시민 제보 및 정보 갱신:</b> 실제 정보와 다른 주유소를 발견하신 경우, 메인 화면의 ‘피드백’ 또는 하단 ‘제보하기’ 메뉴를 통해 알려주시면 운영자 검토 후 반영하겠습니다.</li></ul>',
     news:'<h3>서비스 소식</h3><p>대전 지역 주유소 위치와 온통대전 캐시백 참고 정보를 보기 쉽게 정리하고 있습니다.</p><p>오류나 새 소식 제보는 하단 제보하기에서 남겨주세요. 확인한 내용을 반영해 업데이트하겠습니다.</p>',
@@ -133,37 +139,8 @@ function openPage(key, faqPage=1, faqSelectedIdx=null){
 
   $('modalTitle').textContent=title[key]||'';
   const box=$('modalContent');
-
-  if(key==='faq'){
-    if(faqSelectedIdx!==null){
-      const item=faqList[faqSelectedIdx];
-      box.innerHTML='<button type="button" class="faq-back-btn" id="faqBack">← 목록으로 돌아가기</button>'
-        +'<h3 style="margin-top:0; color:var(--ink); font-size:14px; font-weight:800;">'+item.q+'</h3>'
-        +'<p style="margin-top:10px; margin-bottom:0; font-size:12px; line-height:1.65; color:#4a5e51;">A. '+item.a+'</p>';
-      box.querySelector('#faqBack').onclick=()=>openPage('faq', faqPage);
-    } else {
-      const start=(faqPage-1)*5, pageItems=faqList.slice(start, start+5);
-      let html='<div class="faq-index-list">' + pageItems.map((item, idx) => '<button type="button" class="faq-index-btn" data-faq-idx="'+(start+idx)+'">'+item.q+'</button>').join('') + '</div>';
-      html+='<div class="faq-pagination"><button type="button" class="faq-page-btn '+(faqPage===1?'active':'')+'" data-fpage="1">1페이지</button><button type="button" class="faq-page-btn '+(faqPage===2?'active':'')+'" data-fpage="2">2페이지</button></div>';
-      box.innerHTML=html;
-
-      box.querySelectorAll('.faq-index-btn').forEach(btn=>{
-        btn.onclick=()=>{
-          const idx=Number(btn.dataset.faqIdx);
-          openPage('faq', faqPage, idx);
-        };
-      });
-      box.querySelectorAll('.faq-page-btn').forEach(pBtn=>{
-        pBtn.onclick=()=>{
-          openPage('faq', Number(pBtn.dataset.fpage));
-        };
-      });
-    }
-  } else {
-    box.innerHTML=(content[key]||'').replace('__FORM__',formUrl);
-    setupModalSwipe(box);
-  }
-
+  box.innerHTML=(content[key]||'').replace('__FORM__',formUrl);
+  setupModalSwipe(box);
   $('modal').hidden=false;
 }
 function closeModal(){$('modal').hidden=true}
