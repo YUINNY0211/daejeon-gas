@@ -48,7 +48,7 @@ const stations=[{"id":1,"name":"천지인주유소","district":"중구","dong":"
 const HOME=[36.3519,127.3787,16],districtCoords={'전체':HOME,'서구':[36.3519,127.3787,15],'유성구':[36.3547,127.3420,15],'중구':[36.3283,127.4270,15],'동구':[36.3316,127.4346,15],'대덕구':[36.3467,127.4156,15]},districts=['전체','서구','유성구','중구','동구','대덕구'];
 const formUrl='https://docs.google.com/forms/d/e/1FAIpQLSfx5l3W-QvZ1uvY78UM8m13msv5SnyU8oq8T66lOI3Ey7zgkQ/viewform?usp=header';
 let selectedDistrict='전체',onlyCashback=true,selectedStation=null,searchedAddress='',showMore=false,map=null,mapMarkers=[],addressMarker=null,feedbacks=[];
-let faqPage=1; // 자주 묻는 질문 현재 페이지
+let faqPage=1;
 const $=id=>document.getElementById(id),mobile=()=>matchMedia('(max-width:767px)').matches;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/[\s㈜()（）]/g,'').replace(/주식회사/g,'');const phoneUri=v=>String(v||'').replace(/[^0-9]/g,'');
@@ -118,7 +118,7 @@ function renderFaqPage(page){
     +'</div>';
   box.querySelectorAll('[data-faq-idx]').forEach(btn=>{
     btn.onclick=()=>{
-      const idx=Number(btn.dataset.faq-idx||btn.getAttribute('data-faq-idx'));
+      const idx=Number(btn.dataset.faqIdx);
       const target=faqList[idx];
       box.innerHTML='<button type="button" class="faq-back-btn" id="faqBackBtn">◀ 목록으로 돌아가기</button>'
         +'<h3>'+target.q+'</h3>'
