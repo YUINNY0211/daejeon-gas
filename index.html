@@ -68,7 +68,7 @@ function addressCandidates(q){return [...new Set(/^(대전|대전광역시)(\s|$
 // Public-source address anchors; these indicate the junction vicinity, not a surveyed centre.
 // Yuseong: Daejeon city gazette no.1811 (2021-08-13), Doan-daero end point.
 // Doma: Daejeon Sejong Research Institute, 2018-07, Tashu station candidate table.
-function knownJunction(q){const name=norm(q).replace(/^대전(?:광역시)?/,'').replace(/^(유성구|서구)/,'').replace(/사거리|네거리|교차로/g,'교차로');return {'유성교차로':{label:'유성네거리 일원',address:'대전광역시 유성구 봉명동 1016-1'},'도마교차로':{label:'도마네거리 일원',address:'대전광역시 서구 도마동 142-37'}}[name]||null}
+function knownJunction(q){const name=norm(q).replace(/^대전(?:광역시)?/,'').replace(/^(유성구|서구)/,'').replace(/4거리|사거리|네거리|교차로/g,'교차로');return {'유성교차로':{label:'유성네거리 일원',address:'대전광역시 유성구 봉명동 1016-1'},'도마교차로':{label:'도마네거리 일원',address:'대전광역시 서구 도마동 142-37'},'내동교차로':{label:'내동네거리 일원 (타슈 대여소 주소 기준)',address:'대전광역시 서구 동서대로 1040'}}[name]||null}
 function geocodeOne(service,q){return new Promise(resolve=>{let done=false;const finish=v=>{if(done)return;done=true;clearTimeout(timer);resolve(v)},timer=setTimeout(()=>finish(null),4500);try{service.geocode({query:q},(status,r)=>{const i=r&&r.v2&&r.v2.addresses&&r.v2.addresses[0];if(!i)return finish(null);const lat=Number(i.y),lng=Number(i.x);finish(Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=33&&lat<=39&&lng>=124&&lng<=132?{lat,lng,label:i.roadAddress||i.jibunAddress||q}:null)})}catch(e){finish(null)}})}
 function moveToSearchHit(hit){
   if(!map){$('searchStatus').textContent='네이버 지도 연결이 필요합니다.';return}
@@ -93,7 +93,7 @@ async function searchAddress(){
   $('searchStatus').textContent='주소·교차로 위치를 찾고 있어요…';$('suggestions').hidden=true;
   const service=window.naver&&naver.maps&&naver.maps.Service;
   // Geocoding is for addresses; POI/intersection names must also use place search.
-  const isJunction=/(사거리|네거리|오거리|교차로)$/.test(q);
+  const isJunction=/(4거리|사거리|네거리|오거리|삼거리|교차로)$/.test(q);
   const isAddress=!isJunction&&/(?:[로길]\s*\d|[동리가]\s*\d|(?:동|읍|면)$)/.test(q);
   let geocodeHit=null;
   const junctionAnchor=knownJunction(q);
@@ -103,8 +103,9 @@ async function searchAddress(){
   const controller=new AbortController();placeController=controller;
   const timer=setTimeout(()=>controller.abort(),18000);
   try{
-    const response=await fetch('/api/place-search?q='+encodeURIComponent(q),{signal:controller.signal});
+    const response=await fetch('/api/place?q='+encodeURIComponent(q),{signal:controller.signal});
     if(version!==searchVersion)return;
+    if(!(response.headers.get('Content-Type')||'').includes('application/json'))throw Error('장소 검색 서버가 연결되지 않았습니다. 운영자에게 문의해 주세요.');
     if(!response.ok){const error=await response.json().catch(()=>({}));throw Error(error.error||'장소 검색 서버에 연결되지 않았습니다.')}
     const data=await response.json();if(version!==searchVersion)return;
     const items=(Array.isArray(data.items)?data.items:[]).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&p.lat>=33&&p.lat<=39&&p.lng>=124&&p.lng<=132);
