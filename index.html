@@ -22,10 +22,20 @@ main{padding-top:13px}.card{background:white;border:1px solid #e5f0e9;border-rad
 .faq-index-list{display:grid;gap:6px;margin-bottom:6px}.faq-index-btn{width:100%;padding:10px 12px;border:1px solid #dcebe2;border-radius:10px;background:#f8fcf9;text-align:left;color:#1b4d34;font-size:12px;font-weight:750;cursor:pointer}.faq-index-btn:hover{background:#eef8f1}
 .faq-back-btn{display:inline-flex;align-items:center;gap:4px;border:1px solid #cde2d5;background:#f3faf6;color:#1b543d;border-radius:8px;padding:5px 11px;font-size:11px;font-weight:800;margin-bottom:8px;cursor:pointer}
 .faq-back-btn:hover{background:#e5f4ec}
+/* Header illustration and copy are separate, responsive elements. */
+.hero{min-height:190px;padding:0;background:radial-gradient(ellipse at 73% 25%,#d1f1e6 0,transparent 57%),linear-gradient(110deg,#f2fbf5,#e0f5ed 76%,#d9f2e8);border-radius:0 0 24px 24px}
+.hero:after{content:"";position:absolute;inset:auto -5% -40px;height:92px;background:#a9e7b4;border-radius:50% 52% 0 0;transform:rotate(-2deg);opacity:.52;z-index:0;pointer-events:none}
+.hero-row{min-height:190px;gap:24px}.hero-brand{max-width:60%;gap:12px}.brand-mark{width:46px;height:46px;background:#fff;box-shadow:0 4px 14px #167c4510;border-radius:14px}.brand-mark svg{width:31px;height:31px}.hero-title{font-size:clamp(23px,2.65vw,30px);line-height:1.17;letter-spacing:-.7px}.hero-sub{font-size:12px;line-height:1.5;margin-top:9px;color:#446354;max-width:320px}
+.hero-visual{position:absolute;z-index:1;right:max(45px,calc((100vw - 980px)/2 + 45px));bottom:-24px;width:min(47vw,470px);height:252px;pointer-events:none}.hero-visual img{display:block;width:100%;height:100%;object-fit:contain}.menu-toggle{align-self:flex-start;margin-top:23px;flex:none;box-shadow:0 3px 12px #17653c0a}
+.faq-item{border:1px solid #dcebe2;border-radius:11px;background:#fff;margin:0 0 8px;overflow:hidden}.faq-item:last-child{margin-bottom:0}.faq-item summary{display:flex;align-items:flex-start;gap:10px;padding:12px;list-style:none;color:#1b4d34;font-size:12px;font-weight:750;line-height:1.6;cursor:pointer}.faq-item summary::-webkit-details-marker{display:none}.faq-item summary:after{content:"+";font-size:18px;font-weight:500;line-height:1.1;margin-left:auto;flex:none;color:#087f53}.faq-item[open] summary{background:#eff8f2}.faq-item[open] summary:after{content:"−"}.faq-item summary:focus-visible{outline:2px solid #087f53;outline-offset:-3px}.faq-answer{padding:11px 12px 13px;border-top:1px solid #e4eee7;color:#4a5e51;font-size:12px;line-height:1.8;overflow-wrap:anywhere}.faq-track{align-items:flex-start}.faq-track .swipe-slide{min-height:0}
+@media(max-width:767px){.hero{min-height:232px}.hero-row{min-height:232px;align-items:flex-start;padding-top:20px;gap:8px}.hero-brand{max-width:calc(100% - 42px);gap:9px}.brand-mark{width:38px;height:38px;border-radius:12px;margin-top:2px}.brand-mark svg{width:27px;height:27px}.hero-title{font-size:22px;line-height:1.15;letter-spacing:-.6px}.hero-sub{font-size:11px;margin-top:7px;max-width:270px}.hero-visual{width:270px;height:180px;right:12px;bottom:-27px}.menu-toggle{margin-top:1px;padding:8px 9px}.hero:after{bottom:-40px;height:87px}}
+@media(max-width:360px){.hero-title{font-size:20px}.hero-sub{max-width:220px;font-size:10px}.hero-visual{width:250px;right:0}.faq-item summary{padding:10px;font-size:11px}.faq-answer{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.faq-track{scroll-behavior:auto}}
+
 </style>
 </head>
 <body>
-<div id="drawerBackdrop" class="drawer-backdrop" hidden></div><header class="hero"><div class="wrap hero-row"><div class="hero-brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M9 42V8a4 4 0 0 1 4-4h17a4 4 0 0 1 4 4v34M5 42h31M15 11h13v11H15zM34 13l7 7v14a4 4 0 0 1-8 0V23"/></svg></span><div><h1 class="hero-title">대전 온통대전<br><em>주유소 캐시백 지도</em></h1><p class="hero-sub">시민 제보로 함께 만드는 대전 주유소 정보</p></div></div><button id="menuToggle" class="menu-toggle" aria-label="전체 메뉴">☰</button></div><div class="hanbit-art" aria-hidden="true"><svg viewBox="0 0 360 190" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="artRiver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#77c9b3"/><stop offset="1" stop-color="#b2e1d1"/></linearGradient></defs><circle cx="286" cy="48" r="34" fill="#f3c969" opacity=".58"/><path d="M0 126Q65 83 126 119T252 108t108-9v91H0z" fill="#a9d8b9" opacity=".72"/><path d="M0 145q62-29 126-2t121-8 113-12v67H0z" fill="#70bc91" opacity=".72"/><path d="M0 165q74-23 143-2t114-4 103-9v40H0z" fill="url(#artRiver)" opacity=".82"/><g fill="#fff" opacity=".76"><rect x="18" y="103" width="24" height="43" rx="3"/><rect x="47" y="88" width="32" height="58" rx="4"/><rect x="83" y="110" width="21" height="36" rx="3"/><rect x="273" y="99" width="26" height="48" rx="3"/><rect x="304" y="82" width="35" height="65" rx="4"/></g><g fill="#58a97c" opacity=".78"><path d="M185 146V50l-30-18h60l-30 18zm-43 0h86v7h-86z"/><path d="M178 50h14v6h-14zm-7 20h28v5h-28zm-6 20h40v5h-40zm-5 20h50v5h-50z"/></g><path d="M185 32V14m-5 0h10m-9-5h8" stroke="#27865b" stroke-width="3" stroke-linecap="round"/><g fill="#fff" opacity=".9"><circle cx="116" cy="37" r="2"/><circle cx="137" cy="56" r="2"/><circle cx="247" cy="31" r="2"/><circle cx="323" cy="52" r="2"/></g></svg></div><nav id="topMenu" class="top-menu" hidden><button data-goto-guide>🧭 이용안내</button><button data-page="privacy">🛡️ 개인정보 처리방침</button><button data-page="news">📰 소식</button><button data-page="operator">👤 서비스 소개</button></nav></header>
+<div id="drawerBackdrop" class="drawer-backdrop" hidden></div><header class="hero"><div class="wrap hero-row"><div class="hero-brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M9 42V8a4 4 0 0 1 4-4h17a4 4 0 0 1 4 4v34M5 42h31M15 11h13v11H15zM34 13l7 7v14a4 4 0 0 1-8 0V23"/></svg></span><div><h1 class="hero-title">대전 온통대전<br><em>주유소 캐시백 지도</em></h1><p class="hero-sub">시민 제보로 함께 만드는 주유소 정보</p></div></div><button id="menuToggle" class="menu-toggle" aria-label="전체 메뉴">☰</button></div><div class="hero-visual" aria-hidden="true"><img src="gas-station-hero.png" alt="" width="1536" height="1024" fetchpriority="high" decoding="async"></div><nav id="topMenu" class="top-menu" hidden><button data-goto-guide>🧭 이용안내</button><button data-page="privacy">🛡️ 개인정보 처리방침</button><button data-page="news">📰 소식</button><button data-page="operator">👤 서비스 소개</button></nav></header>
 <main class="wrap">
 <section class="card notice"><strong>⚠️ 이용 전 확인해 주세요</strong>캐시백 혜택은 온통대전 운영 정책과 예산에 따라 변경될 수 있어요. 방문 전 온통대전 앱에서 최신 가맹점 정보를 확인해 주세요.</section>
 
@@ -160,42 +170,20 @@ const faqList=[
 
 function renderFaqMain(){
   const box=$('modalContent');
-  
-  // 5개씩 2페이지로 나누기
-  const page1 = faqList.slice(0, 5);
-  const page2 = faqList.slice(5, 10);
-
-  box.innerHTML = '<p class="swipe-hint">↔ 옆으로 넘겨서 확인하세요</p>'
-    +'<div class="swipe-track">'
-    // 첫 번째 슬라이드 (1~5번)
-    +'<div class="swipe-slide">'
-    +'<h3 style="margin-top:0 !important">자주 묻는 질문 (1/2)</h3>'
-    +'<div class="faq-index-list">'
-    +page1.map((item,i)=>'<button type="button" class="faq-index-btn" data-faq-idx="'+i+'">'+item.q+'</button>').join('')
-    +'</div></div>'
-    // 두 번째 슬라이드 (6~10번)
-    +'<div class="swipe-slide">'
-    +'<h3 style="margin-top:0 !important">자주 묻는 질문 (2/2)</h3>'
-    +'<div class="faq-index-list">'
-    +page2.map((item,i)=>'<button type="button" class="faq-index-btn" data-faq-idx="'+(i+5)+'">'+item.q+'</button>').join('')
-    +'</div></div>'
+  const pages=[faqList.slice(0,5),faqList.slice(5,10)];
+  box.innerHTML='<p class="swipe-hint">↔ 옆으로 넘겨서 확인하세요</p>'
+    +'<div class="swipe-track faq-track">'
+    +pages.map((page,pageIndex)=>'<div class="swipe-slide">'
+      +'<h3 style="margin-top:0 !important">자주 묻는 질문 ('+(pageIndex+1)+'/2)</h3>'
+      +page.map((item,i)=>'<details class="faq-item" id="faq-'+(pageIndex*5+i+1)+'">'
+        +'<summary>'+esc(item.q)+'</summary>'
+        +'<div class="faq-answer">'+item.a+'</div>'
+        +'</details>').join('')
+      +'</div>').join('')
     +'</div>';
-
   setupModalSwipe(box);
-
-  box.querySelectorAll('[data-faq-idx]').forEach(btn=>{
-    btn.onclick=()=>{
-      const idx=Number(btn.dataset.faqIdx);
-      const target=faqList[idx];
-      box.innerHTML='<button type="button" class="faq-back-btn" id="faqBackBtn">◀ 목록으로 돌아가기</button>'
-        +'<div class="swipe-slide" style="min-height:160px;margin-top:6px;">'
-        +'<h3 style="margin-top:0 !important">'+target.q+'</h3>'
-        +'<p>'+target.a+'</p>'
-        +'</div>';
-      $('faqBackBtn').onclick=renderFaqMain;
-    };
-  });
 }
+
 
 function openPage(key){
   const title={guide:'이용안내',faq:'자주 묻는 질문',notice:'공지사항',updates:'업데이트',privacy:'개인정보 처리방침',operator:'서비스 소개',news:'소식'};
