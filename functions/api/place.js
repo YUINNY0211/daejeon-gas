@@ -25,7 +25,7 @@ export async function onRequest({request,env}){
       endpoint.search=new URLSearchParams({query,display:'5',start:'1',sort:'random',...(!legacy?{format:'json'}:{})}).toString();
       const headers=legacy?{'X-Naver-Client-Id':id,'X-Naver-Client-Secret':secret}:{'X-NCP-APIGW-API-KEY-ID':id,'X-NCP-APIGW-API-KEY':secret};
       const response=await fetch(endpoint,{headers,signal:controller.signal});
-      if(!response.ok)return reply({error:response.status===429?'장소 검색 이용 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.':'장소 검색 API 인증 또는 연결을 확인해 주세요.'},response.status===429?429:502);
+     if(!response.ok){console.error('PLACE_API_UPSTREAM_HTTP',{status:response.status,provider});return reply({error:response.status===429?'장소 검색 이용 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.':'장소 검색 API 인증 또는 연결을 확인해 주세요.'},response.status===429?429:502);}
       const data=await response.json();if(!Array.isArray(data.items))throw Error('Malformed upstream response');
       const items=data.items.map(i=>({...i,title:plain(i.title),label:plain(i.title),address:i.roadAddress||i.address||'',roadAddress:i.roadAddress||'',jibunAddress:i.address||'',lat:coordinate(i.mapy,90),lng:coordinate(i.mapx,180)})).filter(i=>Number.isFinite(i.lat)&&Number.isFinite(i.lng)&&i.lat>=36.1&&i.lat<=36.6&&i.lng>=127.2&&i.lng<=127.6&&/^대전(?:광역시)?\s/.test(i.address)&&(!junction||normalize(i.title)===normalize(q))).map(i=>({...i,mapx:String(Math.round(i.lng*1e7)),mapy:String(Math.round(i.lat*1e7))}));
       // Return both normalized lat/lng and original-style mapx/mapy for existing clients.
