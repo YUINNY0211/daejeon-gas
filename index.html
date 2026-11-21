@@ -68,14 +68,122 @@ function withinOne(a,b){if(Math.abs(a.length-b.length)>1)return false;let i=0,j=
 function fuzzy(value,q){const v=norm(value);if(v.includes(q))return true;if(q.length<3)return false;for(let i=0;i<v.length;i++)for(let z=Math.max(1,q.length-1);z<=q.length+1&&i+z<=v.length;z++)if(withinOne(q,v.slice(i,i+z)))return true;return false}
 function stat(d){const a=stations.filter(s=>d==='전체'||s.district===d);return onlyCashback?a.filter(s=>s.cashback===true).length:a.length}
 function filtered(){return stations.filter(s=>(selectedDistrict==='전체'||s.district===selectedDistrict)&&(!onlyCashback||s.cashback===true))}
-function findSuggestions(q){if(!q)return[];const n=norm(q);return stations.filter(s=>[s.name,s.dong,s.address,s.district].some(v=>norm(v).includes(n))||[s.name,s.dong].some(v=>fuzzy(v,n))).sort((a,b)=>Number(norm(b.name).includes(n))-Number(norm(a.name).includes(n)))}
+function findSuggestions(q){if(!q)return[];const n=norm(q);return stations.filter(s=>[s.name,s.dong,s.address,s.district].some(v=>norm(v).includes(n))).sort((a,b)=>Number(norm(b.name).includes(n))-Number(norm(a.name).includes(n)))}
 function badge(s){return s.cashback===true?'<span class="badge yes">🟢 캐시백 가능</span>':'<span class="badge no">● 캐시백 미확인</span>'}
 function clearPin(){cancelSearch();searchedAddress='';if(addressMarker){addressMarker.setMap(null);addressMarker=null}}
 function renderDistricts(){$('districts').innerHTML=districts.map(d=>'<button class="chip '+(d===selectedDistrict?'active':'')+'" data-district="'+esc(d)+'">'+esc(d)+' <b>'+stat(d)+'</b></button>').join('');$('districts').querySelectorAll('[data-district]').forEach(b=>b.onclick=()=>{selectedDistrict=b.dataset.district;selectedStation=null;showMore=false;clearPin();$('searchStatus').textContent='';renderAll();moveToDistrict()})}
 function renderCounts(){const a=filtered(),pins=a.filter(s=>s.lat!=null&&s.lng!=null).length;$('filterCount').textContent='표시 '+a.length+'곳'+(pins<a.length?' · 지도 '+pins+'곳':'')}
 function getSuggestions(){return findSuggestions($('searchInput').value.trim())}
-function renderSuggestions(){const box=$('suggestions'),q=$('searchInput').value.trim();if(!q){box.hidden=true;box.innerHTML='';return}const a=getSuggestions();box.hidden=false;box.innerHTML=a.slice(0,8).map(s=>'<button type="button" data-station="'+s.id+'"><b>'+esc(s.name)+'</b><small>'+esc(s.district+' '+(s.dong||''))+'</small></button>').join('')+(a.length>8?'<div class="status">외 '+(a.length-8)+'곳 · 검색을 누르면 첫 결과를 선택합니다.</div>':'')+(!a.length?'<div class="status">등록된 주유소가 아니면 주소를 지도에서 찾을 수 있어요.</div>':'')+'<button type="button" class="address-action" data-address>📍 입력한 주소를 지도에서 찾기</button>';box.querySelectorAll('[data-station]').forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>{const s=stations.find(x=>x.id===Number(b.dataset.station));if(s)choose(s)}});const address=box.querySelector('[data-address]');address.onmousedown=e=>e.preventDefault();address.onclick=searchAddress}
-function runSearch(){const q=norm($('searchInput').value.trim()),a=getSuggestions();if(!q)return;const named=a.find(s=>norm(s.name)===q)||a.find(s=>norm(s.name).includes(q));if(named)choose(named);else searchAddress()}
+
+let autoTimer=null,autoController=null,autoVersion=0;
+let autoQuery='',autoPlaces=[],autoLoading=false;
+const autoCache=new Map();
+
+function cancelAuto(){
+  clearTimeout(autoTimer);
+  if(autoController)autoController.abort();
+  autoController=null;
+  autoVersion++;
+  autoLoading=false;
+}
+
+function autoSuggest(){
+  cancelAuto();
+  const q=$('searchInput').value.trim();
+  autoQuery=q;
+  autoPlaces=[];
+  if(norm(q).length<2){
+    renderSuggestions();
+    return;
+  }
+  autoLoading=true;
+  renderSuggestions();
+  const version=autoVersion;
+  autoTimer=setTimeout(async()=>{
+    if(version!==autoVersion)return;
+    const key=norm(q);
+    const cached=autoCache.get(key);
+    if(cached&&Date.now()-cached.time<600000){
+      autoPlaces=cached.items;
+      autoLoading=false;
+      renderSuggestions();
+      return;
+    }
+    const controller=new AbortController();
+    autoController=controller;
+    try{
+      const response=await fetch(
+        '/api/place?q='+encodeURIComponent(q),
+        {signal:controller.signal}
+      );
+      if(!response.ok)throw Error('?? ?? ??');
+      const data=await response.json();
+      if(version!==autoVersion)return;
+      const items=(Array.isArray(data.items)?data.items:[])
+        .filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)
+          &&p.lat>=33&&p.lat<=39&&p.lng>=124&&p.lng<=132)
+        .filter(p=>[p.label,p.address,p.roadAddress,p.jibunAddress]
+          .some(v=>norm(v).includes(key)))
+        .slice(0,5);
+      autoPlaces=items;
+      autoCache.set(key,{time:Date.now(),items});
+      if(autoCache.size>60)
+        autoCache.delete(autoCache.keys().next().value);
+    }catch(e){
+      if(version!==autoVersion)return;
+      autoPlaces=[];
+    }finally{
+      if(version===autoVersion){
+        autoLoading=false;
+        if(autoController===controller)autoController=null;
+        renderSuggestions();
+      }
+    }
+  },500);
+}
+function renderSuggestions(){
+ const box=$('suggestions'),q=$('searchInput').value.trim();
+ if(!q){box.hidden=true;box.innerHTML='';return}
+ const local=getSuggestions().slice(0,5);
+ const places=autoQuery===q?autoPlaces:[];
+ const placeHtml=places.map((p,i)=>
+   '<button type="button" data-auto-place="'+i+'"><b>'+
+   esc(p.label||p.address)+'</b><small>'+
+   esc(p.address||p.roadAddress||'')+'</small></button>'
+ ).join('');
+ const stationHtml=local.map(s=>
+   '<button type="button" data-station="'+s.id+'"><b>'+
+   esc(s.name)+'</b><small>'+
+   esc(s.district+' '+(s.dong||''))+'</small></button>'
+ ).join('');
+ const loading=autoQuery===q&&autoLoading;
+ box.hidden=false;
+ box.innerHTML=
+   (places.length?'<div class="status">????? ?? ??</div>'+placeHtml:'')+
+   (local.length?'<div class="status">??? ???</div>'+stationHtml:'')+
+   (loading?'<div class="status">?? ?? ??</div>':'')+
+   (!loading&&!places.length&&!local.length?
+      '<div class="status">?? ??? ??? Enter? ??? ???.</div>':'')+
+   '<button type="button" class="address-action" data-address>?? ??? ??? ???? ??</button>';
+ box.querySelectorAll('[data-auto-place]').forEach(b=>{
+   b.onmousedown=e=>e.preventDefault();
+   b.onclick=()=>{
+     const hit=places[Number(b.dataset.autoPlace)];
+     if(hit){cancelAuto();moveToSearchHit(hit)}
+   };
+ });
+ box.querySelectorAll('[data-station]').forEach(b=>{
+   b.onmousedown=e=>e.preventDefault();
+   b.onclick=()=>{
+     const s=stations.find(x=>x.id===Number(b.dataset.station));
+     if(s){cancelAuto();choose(s)}
+   };
+ });
+ const address=box.querySelector('[data-address]');
+ address.onmousedown=e=>e.preventDefault();
+ address.onclick=()=>{cancelAuto();searchAddress()};
+}
+function runSearch(){cancelAuto();const q=norm($('searchInput').value.trim()),a=getSuggestions();if(!q)return;const named=a.find(s=>norm(s.name)===q)||a.find(s=>norm(s.name).includes(q));if(named)choose(named);else searchAddress()}
 function choose(s){lastStationPick=Date.now();cancelSearch();selectedStation=s;searchedAddress='';showMore=false;clearPin();$('suggestions').hidden=true;$('searchInput').value=s.name;$('searchStatus').textContent='';renderAll();if(map&&s.lat!=null&&s.lng!=null){map.setCenter(new naver.maps.LatLng(s.lat,s.lng));map.setZoom(17);setTimeout(()=>{$('map-section').scrollIntoView({behavior:'smooth',block:'start'});if(naver.maps.Event)naver.maps.Event.trigger(map,'resize');pinVisibility?.request(true)},80)}}
 // Search requests are invalidated when the user types, selects a station or changes filters.
 let searchVersion=0,placeController=null;
@@ -102,7 +210,7 @@ function showPlaceResults(items){
   box.innerHTML='<div class="status">네이버 장소 검색 결과 · 위치를 선택해 주세요.</div>'+items.map((p,i)=>'<button type="button" data-place="'+i+'"><span><b>'+esc(p.label)+'</b><br><small>'+esc(p.address)+'</small></span></button>').join('');
   box.querySelectorAll('[data-place]').forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>moveToSearchHit(items[Number(b.dataset.place)])});
 }
-async function searchAddress(){
+async function searchAddress(){cancelAuto();
   const q=$('searchInput').value.trim();if(!q)return;
   cancelSearch();const version=searchVersion;
   if(!map){$('searchStatus').textContent='네이버 지도 연결이 필요합니다.';return}
@@ -218,7 +326,7 @@ function initMap(){if(!window.naver||!naver.maps){$('mapError').classList.add('s
 window.navermap_authFailure=function(){$('mapError').classList.add('show')};
 document.body.appendChild($('topMenu'));function closeDrawer(){$('topMenu').classList.remove('open');$('topMenu').hidden=true;$('drawerBackdrop').hidden=true}function openDrawer(){$('topMenu').hidden=false;$('drawerBackdrop').hidden=false;requestAnimationFrame(()=>$('topMenu').classList.add('open'))}$('menuToggle').onclick=openDrawer;$('dockMenu').onclick=openDrawer;$('drawerBackdrop').onclick=closeDrawer;const guideShortcut=$('topMenu').querySelector('[data-goto-guide]');if(guideShortcut)guideShortcut.onclick=()=>{closeDrawer();$('site-guide').scrollIntoView({behavior:'smooth'});document.querySelectorAll('.guide-link').forEach((x,i)=>{setTimeout(()=>x.classList.add('guide-pulse'),i*100);setTimeout(()=>x.classList.remove('guide-pulse'),2600+i*100)})};
 document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{closeDrawer();openPage(b.dataset.page)});$('modalClose').onclick=closeModal;$('modal').onclick=e=>{if(e.target===$('modal'))closeModal()};$('cashbackOnly').onchange=e=>{onlyCashback=e.target.checked;selectedStation=null;showMore=false;clearPin();renderAll();fitList(filtered())};
-$('searchInput').oninput=()=>{cancelSearch();$('searchStatus').textContent='';renderSuggestions()};$('searchInput').onfocus=renderSuggestions;$('searchInput').onblur=()=>setTimeout(()=>$('suggestions').hidden=true,150);$('searchInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();runSearch()}if(e.key==='Escape')$('suggestions').hidden=true};$('searchGo').onclick=runSearch;
+$('searchInput').oninput=()=>{cancelSearch();$('searchStatus').textContent='';autoSuggest()};$('searchInput').onfocus=renderSuggestions;$('searchInput').onblur=()=>setTimeout(()=>$('suggestions').hidden=true,150);$('searchInput').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();runSearch()}if(e.key==='Escape')$('suggestions').hidden=true};$('searchGo').onclick=runSearch;
 let mapResizeObserver=null;function setupMapResize(){if(mapResizeObserver||!window.ResizeObserver)return;let previousWidth=0,previousHeight=0;mapResizeObserver=new ResizeObserver(entries=>{const {width,height}=entries[0].contentRect;if(width===previousWidth&&height===previousHeight)return;previousWidth=width;previousHeight=height;requestAnimationFrame(()=>{if(!map)return;naver.maps.Event.trigger(map,'resize');pinVisibility?.request(false);});});mapResizeObserver.observe($('map'));}
 function closeStation(){pinVisibility?.cancel();selectedStation=null;CitizenPage.close();drawMarkers();}
 $('map-section').appendChild($('stationPanel'));
