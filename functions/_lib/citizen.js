@@ -31,7 +31,17 @@ export async function handle({request,env},deps={}){
   const production=env.LOCAL_TEST_MODE!=='true'&&env.PUBLIC_ORIGIN===PRODUCTION_ORIGIN&&url.origin===PRODUCTION_ORIGIN;
   if(!localPreview&&!production)fail(503,'local_only_build');
   const writesReady=env.CITIZEN_WRITES_ENABLED==='true'&&(localPreview||productionConfigured(env));
-  if(route==='config'&&request.method==='GET')return json({siteKey:env.TURNSTILE_SITE_KEY||null,localPreview,enabled:writesReady});
+  if(route==='config'&&request.method==='GET')return json({
+    siteKey:env.TURNSTILE_SITE_KEY||null,
+    localPreview,
+    enabled:writesReady,
+    diagnostic:{
+      writesFlag:env.CITIZEN_WRITES_ENABLED==='true',
+      hmacReady:typeof env.ABUSE_HMAC_SECRET==='string'&&env.ABUSE_HMAC_SECRET.length>=32,
+      turnstileReady:!!env.TURNSTILE_SECRET&&!!env.TURNSTILE_SITE_KEY,
+      hostnameReady:env.TURNSTILE_HOSTNAME===new URL(PRODUCTION_ORIGIN).hostname
+    }
+  });
   if(route==='reports'&&request.method==='GET'){
    const limit=Number(url.searchParams.get('limit')??5);if(!Number.isInteger(limit)||limit<1||limit>20)fail(400,'invalid_limit');
    const raw=url.searchParams.get('stationId'),id=raw===null?null:await station(db,Number(raw));
