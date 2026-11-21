@@ -116,7 +116,7 @@ function autoSuggest(){
         '/api/place?q='+encodeURIComponent(q),
         {signal:controller.signal}
       );
-      if(!response.ok)throw Error('?? ?? ??');
+      if(!response.ok)throw Error('장소 검색 실패');
       const data=await response.json();
       if(version!==autoVersion)return;
       const items=(Array.isArray(data.items)?data.items:[])
@@ -159,12 +159,12 @@ function renderSuggestions(){
  const loading=autoQuery===q&&autoLoading;
  box.hidden=false;
  box.innerHTML=
-   (places.length?'<div class="status">????? ?? ??</div>'+placeHtml:'')+
-   (local.length?'<div class="status">??? ???</div>'+stationHtml:'')+
-   (loading?'<div class="status">?? ?? ??</div>':'')+
+   (places.length?'<div class="status">장소·주소 검색 결과</div>'+placeHtml:'')+
+   (local.length?'<div class="status">장소·주소 검색 결과</div>'+stationHtml:'')+
+   (loading?'<div class="status">장소 검색 중…</div>':'')+
    (!loading&&!places.length&&!local.length?
-      '<div class="status">?? ??? ??? Enter? ??? ???.</div>':'')+
-   '<button type="button" class="address-action" data-address>?? ??? ??? ???? ??</button>';
+      '<div class="status">추천 결과가 없으면 Enter로 검색해 주세요.</div>':'')+
+   '<button type="button" class="address-action" data-address>📍 입력한 주소를 지도에서 찾기</button>';
  box.querySelectorAll('[data-auto-place]').forEach(b=>{
    b.onmousedown=e=>e.preventDefault();
    b.onclick=()=>{
