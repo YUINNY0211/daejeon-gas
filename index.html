@@ -81,34 +81,69 @@ const autoCache=new Map();
 
 function cancelAuto(){
   clearTimeout(autoTimer);
+  autoTimer=null;
   if(autoController)autoController.abort();
   autoController=null;
   autoVersion++;
   autoLoading=false;
 }
 
+function cachedAutoPlaces(key){
+  const cached=autoCache.get(key);
+  return cached&&Date.now()-cached.time<600000?cached.items:null;
+}
+
+function matchingAutoPlaces(items,key){
+  return items.filter(p=>
+    [p.label,p.address,p.roadAddress,p.jibunAddress]
+      .some(v=>norm(v).includes(key))
+  ).slice(0,5);
+}
+
 function autoSuggest(){
   cancelAuto();
   const q=$('searchInput').value.trim();
+  const key=norm(q);
   autoQuery=q;
   autoPlaces=[];
-  if(norm(q).length<2){
+
+  if(key.length<2){
     renderSuggestions();
     return;
   }
+
+  const exact=cachedAutoPlaces(key);
+  if(exact!==null){
+    autoPlaces=exact;
+    renderSuggestions();
+    return;
+  }
+
+  // Reuse matching entries from a cached shorter search immediately.
+  // The exact query still runs after the normal debounce.
+  let preview=null;
+  let bestLength=-1;
+  for(const [cachedKey] of autoCache){
+    if(cachedKey.length>=2 &&
+       cachedKey.length<key.length &&
+       key.startsWith(cachedKey) &&
+       cachedKey.length>bestLength){
+      const items=cachedAutoPlaces(cachedKey);
+      if(items!==null){
+        preview=matchingAutoPlaces(items,key);
+        bestLength=cachedKey.length;
+      }
+    }
+  }
+
+  if(preview!==null)autoPlaces=preview;
   autoLoading=true;
   renderSuggestions();
+
   const version=autoVersion;
   autoTimer=setTimeout(async()=>{
     if(version!==autoVersion)return;
-    const key=norm(q);
-    const cached=autoCache.get(key);
-    if(cached&&Date.now()-cached.time<600000){
-      autoPlaces=cached.items;
-      autoLoading=false;
-      renderSuggestions();
-      return;
-    }
+
     const controller=new AbortController();
     autoController=controller;
     try{
@@ -116,22 +151,24 @@ function autoSuggest(){
         '/api/place?q='+encodeURIComponent(q),
         {signal:controller.signal}
       );
-      if(!response.ok)throw Error('장소 검색 실패');
+      if(!response.ok)throw Error('Place search failed');
       const data=await response.json();
       if(version!==autoVersion)return;
+
       const items=(Array.isArray(data.items)?data.items:[])
         .filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)
           &&p.lat>=33&&p.lat<=39&&p.lng>=124&&p.lng<=132)
         .filter(p=>[p.label,p.address,p.roadAddress,p.jibunAddress]
           .some(v=>norm(v).includes(key)))
         .slice(0,5);
+
       autoPlaces=items;
       autoCache.set(key,{time:Date.now(),items});
       if(autoCache.size>60)
         autoCache.delete(autoCache.keys().next().value);
     }catch(e){
       if(version!==autoVersion)return;
-      autoPlaces=[];
+      // Preserve a valid preview if the network request fails.
     }finally{
       if(version===autoVersion){
         autoLoading=false;
@@ -139,7 +176,7 @@ function autoSuggest(){
         renderSuggestions();
       }
     }
-  },350);
+  },500);
 }
 function renderSuggestions(){
  const box=$('suggestions'),q=$('searchInput').value.trim();
