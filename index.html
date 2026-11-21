@@ -93,13 +93,6 @@ function cachedAutoPlaces(key){
   return cached&&Date.now()-cached.time<600000?cached.items:null;
 }
 
-function matchingAutoPlaces(items,key){
-  return items.filter(p=>
-    [p.label,p.address,p.roadAddress,p.jibunAddress]
-      .some(v=>norm(v).includes(key))
-  ).slice(0,5);
-}
-
 function autoSuggest(){
   cancelAuto();
   const q=$('searchInput').value.trim();
@@ -112,38 +105,19 @@ function autoSuggest(){
     return;
   }
 
-  const exact=cachedAutoPlaces(key);
-  if(exact!==null){
-    autoPlaces=exact;
+  const cached=cachedAutoPlaces(key);
+  if(cached!==null){
+    autoPlaces=cached;
     renderSuggestions();
     return;
   }
 
-  // Reuse matching entries from a cached shorter search immediately.
-  // The exact query still runs after the normal debounce.
-  let preview=null;
-  let bestLength=-1;
-  for(const [cachedKey] of autoCache){
-    if(cachedKey.length>=2 &&
-       cachedKey.length<key.length &&
-       key.startsWith(cachedKey) &&
-       cachedKey.length>bestLength){
-      const items=cachedAutoPlaces(cachedKey);
-      if(items!==null){
-        preview=matchingAutoPlaces(items,key);
-        bestLength=cachedKey.length;
-      }
-    }
-  }
-
-  if(preview!==null)autoPlaces=preview;
   autoLoading=true;
   renderSuggestions();
-
   const version=autoVersion;
+
   autoTimer=setTimeout(async()=>{
     if(version!==autoVersion)return;
-
     const controller=new AbortController();
     autoController=controller;
     try{
@@ -168,7 +142,7 @@ function autoSuggest(){
         autoCache.delete(autoCache.keys().next().value);
     }catch(e){
       if(version!==autoVersion)return;
-      // Preserve a valid preview if the network request fails.
+      autoPlaces=[];
     }finally{
       if(version===autoVersion){
         autoLoading=false;
